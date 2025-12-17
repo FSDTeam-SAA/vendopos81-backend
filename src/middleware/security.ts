@@ -22,12 +22,7 @@ export const loginLimiter = rateLimit({
 });
 
 const corsOptions = {
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://polspoch-website.vercel.app",
-    "https://polspoch-dashboard.vercel.app",
-  ],
+  origin: ["http://localhost:3000", "http://localhost:3001"],
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
   credentials: true,
 };
@@ -46,12 +41,10 @@ export const applySecurity = (app: Application) => {
 
   app.use(cors(corsOptions));
 
-//! When you want to allow specific query parameters to be duplicated in the query string, you can use the whitelist option.
+  //! When you want to allow specific query parameters to be duplicated in the query string, you can use the whitelist option.
   app.use(
     hpp({
-      whitelist: [
-        "products",
-      ],
+      whitelist: ["products"],
     })
   );
   app.use(compression());
