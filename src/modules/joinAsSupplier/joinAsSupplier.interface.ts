@@ -11,6 +11,7 @@ export interface IJoinAsSupplier {
   phone: string;
   email: string;
   reasonForRejection?: string;
+  warehouseLocation: string;
   address: string;
   city: string;
   state: string;
@@ -18,7 +19,9 @@ export interface IJoinAsSupplier {
   documentUrl: {
     public_id: string;
     url: string;
-  }
+  };
+  rating?: number;
+  totalSales?: number;
   createdAt: Date;
   updatedAt: Date;
 }

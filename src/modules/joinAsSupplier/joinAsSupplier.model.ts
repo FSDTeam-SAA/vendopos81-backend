@@ -16,6 +16,7 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
     phone: { type: String, required: true },
     email: { type: String, required: true },
     reasonForRejection: { type: String },
+    warehouseLocation: { type: String, required: true },
     address: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
@@ -24,6 +25,8 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
       public_id: { type: String, required: true },
       url: { type: String, required: true },
     },
+    rating: { type: Number, default: 0 },
+    totalSales: { type: Number, default: 0 },
   },
   {
     timestamps: true,
