@@ -10,6 +10,7 @@ async function main() {
   try {
     await mongoose.connect(config.mongodbUrl as string);
     logger.info("MongoDB connected successfully");
+
     const httpServer = http.createServer(app);
 
     const io = new Server(httpServer, {
