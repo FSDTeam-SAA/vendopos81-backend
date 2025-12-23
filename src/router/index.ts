@@ -3,6 +3,7 @@ import userRouter from "../modules/user/user.router";
 import authRouter from "../modules/auth/auth.router";
 import contactRouter from "../modules/contact/contact.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
+import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
 
 const router = Router();
 
@@ -22,6 +23,10 @@ const moduleRoutes = [
   {
     path: "/subscription",
     route: subscriptionRouter,
+  },
+  {
+    path: "/join-as-supplier",
+    route: joinAsSupplierRouter,
   },
 ];
 
