@@ -13,8 +13,18 @@ const createSubscription = async (email: string) => {
 
 };
 
+const getAllSubscriptionFromDb = async () => {
+  return await Subscription.find().sort({ createdAt: -1 });
+}
+
+const deleteSubcriptionFromDb = async (id: string) => {
+  return await Subscription.findByIdAndDelete(id);
+}
+
 const subscriptionService = {
   createSubscription,
+  getAllSubscriptionFromDb,
+  deleteSubcriptionFromDb
 };
 
 export default subscriptionService;
