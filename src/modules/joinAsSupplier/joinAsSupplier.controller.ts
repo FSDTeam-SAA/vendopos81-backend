@@ -44,10 +44,24 @@ const getAllSuppliers = catchAsync(async (req, res) => {
   });
 });
 
+const updateSupplierStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  await joinAsSupplierService.updateSupplierStatus(id, status);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Supplier status updated successfully",
+    // data: result,
+  });
+});
+
 const joinAsSupplierController = {
   joinAsSupplier,
   getMySupplierInfo,
   getAllSuppliers,
+  updateSupplierStatus,
 };
 
 export default joinAsSupplierController;

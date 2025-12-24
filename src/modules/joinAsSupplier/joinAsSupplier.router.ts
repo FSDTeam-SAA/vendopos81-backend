@@ -26,5 +26,11 @@ router.get(
   joinAsSupplierController.getAllSuppliers
 );
 
+router.put(
+  "/update-status/:id",
+  // auth(USER_ROLE.ADMIN),
+  joinAsSupplierController.updateSupplierStatus
+);
+
 const joinAsSupplierRouter = router;
 export default joinAsSupplierRouter;

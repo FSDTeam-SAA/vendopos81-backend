@@ -2,6 +2,8 @@ import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
 import generateShopSlug from "../../middleware/generateShopSlug";
 import { uploadToCloudinary } from "../../utils/cloudinary";
+import sendEmail from "../../utils/sendEmail";
+import sendTemplateMail from "../../utils/sendTamplateMail";
 import { User } from "../user/user.model";
 import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
 import JoinAsSupplier from "./joinAsSupplier.model";
@@ -153,10 +155,57 @@ const getAllSuppliers = async (query: IQuery) => {
   };
 };
 
+const updateSupplierStatus = async (id: string, status: string) => {
+  const supplier = await JoinAsSupplier.findById(id);
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  const validStatuses = ["pending", "approved", "rejected"];
+  if (!validStatuses.includes(status)) {
+    throw new AppError("Invalid status value", StatusCodes.BAD_REQUEST);
+  }
+
+  await JoinAsSupplier.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  );
+
+  // ✅ Email content
+  if (status === "approved") {
+    await User.findByIdAndUpdate(supplier.userId, { role: "supplier" });
+
+    await sendEmail({
+      to: supplier.email,
+      subject: "Your Supplier Account is Approved",
+      html: sendTemplateMail({
+        type: "success",
+        email: supplier.email,
+        subject: "Supplier Account Approved",
+        message: `Congratulations! Your supplier account has been approved. You can now start adding products "${supplier.shopName}".`,
+      }),
+    });
+  } else if (status === "rejected") {
+    await sendEmail({
+      to: supplier.email,
+      subject: "Your Supplier Application is Rejected",
+      html: sendTemplateMail({
+        type: "rejected",
+        email: supplier.email,
+        subject: "Supplier Application Rejected",
+        message: `We are sorry! Your supplier application has been rejected. Please review your information and try again later.`,
+      }),
+    });
+  }
+
+  // return result;
+};
 
 const joinAsSupplierService = {
   joinAsSupplier,
   getMySupplierInfo,
   getAllSuppliers,
+  updateSupplierStatus,
 };
 export default joinAsSupplierService;
