@@ -11,6 +11,7 @@ const subscriptionSchema = new Schema<ISubscription>(
   }
 );
 
+
 const Subscription = model<ISubscription>("Subscription", subscriptionSchema);
 
 export default Subscription;
