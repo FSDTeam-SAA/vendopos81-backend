@@ -155,6 +155,18 @@ const getAllSuppliers = async (query: IQuery) => {
   };
 };
 
+const getSingleSupplier = async (id: string) => {
+  const supplier = await JoinAsSupplier.findById(id).populate(
+    "userId",
+    "firstName lastName email phone image"
+  );
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  return supplier;
+};
+
 const updateSupplierStatus = async (id: string, status: string) => {
   const supplier = await JoinAsSupplier.findById(id);
   if (!supplier) {
@@ -166,11 +178,7 @@ const updateSupplierStatus = async (id: string, status: string) => {
     throw new AppError("Invalid status value", StatusCodes.BAD_REQUEST);
   }
 
-  await JoinAsSupplier.findByIdAndUpdate(
-    id,
-    { status },
-    { new: true }
-  );
+  await JoinAsSupplier.findByIdAndUpdate(id, { status }, { new: true });
 
   // ✅ Email content
   if (status === "approved") {
@@ -202,10 +210,40 @@ const updateSupplierStatus = async (id: string, status: string) => {
   // return result;
 };
 
+// const addRejectReason = async (id: string, reason: string) => {
+//   const supplier = await JoinAsSupplier.findById(id);
+//   if (!supplier) {
+//     throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+//   }
+
+//   await JoinAsSupplier.findByIdAndUpdate(
+//     id,
+//     { rejectReason: reason },
+//     { new: true }
+//   );
+// };
+
+const suspendSupplier = async (id: string) => {
+  const supplier = await JoinAsSupplier.findById(id);
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  const newStatus = !supplier.isSuspended;
+
+  await JoinAsSupplier.findByIdAndUpdate(
+    id,
+    { isSuspended: newStatus },
+    { new: true }
+  );
+};
+
 const joinAsSupplierService = {
   joinAsSupplier,
   getMySupplierInfo,
   getAllSuppliers,
+  getSingleSupplier,
   updateSupplierStatus,
+  suspendSupplier,
 };
 export default joinAsSupplierService;

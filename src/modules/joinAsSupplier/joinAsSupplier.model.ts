@@ -40,6 +40,8 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
     ],
     rating: { type: Number, default: 0 },
     totalSales: { type: Number, default: 0 },
+    totalOrders: { type: Number, default: 0 },
+    isSuspended: { type: Boolean, default: false },
   },
   {
     timestamps: true,

@@ -44,6 +44,18 @@ const getAllSuppliers = catchAsync(async (req, res) => {
   });
 });
 
+const getSingleSupplier = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await joinAsSupplierService.getSingleSupplier(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Supplier retrieved successfully",
+    data: result,
+  });
+});
+
 const updateSupplierStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -57,11 +69,24 @@ const updateSupplierStatus = catchAsync(async (req, res) => {
   });
 });
 
+const suspendSupplier = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  await joinAsSupplierService.suspendSupplier(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: `Supplier toggle status successfully`,
+  });
+});
+
 const joinAsSupplierController = {
   joinAsSupplier,
   getMySupplierInfo,
   getAllSuppliers,
   updateSupplierStatus,
+  getSingleSupplier,
+  suspendSupplier,
 };
 
 export default joinAsSupplierController;

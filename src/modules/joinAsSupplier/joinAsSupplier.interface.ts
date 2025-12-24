@@ -22,6 +22,8 @@ export interface IJoinAsSupplier {
   }[];
   rating?: number;
   totalSales?: number;
+  totalOrders?: number;
+  isSuspended?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
