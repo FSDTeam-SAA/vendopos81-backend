@@ -34,8 +34,8 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
     zipCode: { type: String, required: true },
     documentUrl: [
       {
-        public_id: { type: String, required: true },
-        url: { type: String, required: true },
+        public_id: { type: String },
+        url: { type: String },
       },
     ],
     rating: { type: Number, default: 0 },
