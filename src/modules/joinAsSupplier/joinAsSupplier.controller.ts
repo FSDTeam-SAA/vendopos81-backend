@@ -80,6 +80,17 @@ const suspendSupplier = catchAsync(async (req, res) => {
   });
 });
 
+const deleteSupplier = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  await joinAsSupplierService.deleteSupplier(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: `Supplier deleted successfully`,
+  });
+});
+
 const joinAsSupplierController = {
   joinAsSupplier,
   getMySupplierInfo,
@@ -87,6 +98,7 @@ const joinAsSupplierController = {
   updateSupplierStatus,
   getSingleSupplier,
   suspendSupplier,
+  deleteSupplier,
 };
 
 export default joinAsSupplierController;

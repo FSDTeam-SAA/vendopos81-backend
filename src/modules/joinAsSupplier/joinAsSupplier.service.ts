@@ -238,6 +238,30 @@ const suspendSupplier = async (id: string) => {
   );
 };
 
+const deleteSupplier = async (id: string) => {
+  const supplier = await JoinAsSupplier.findById(id);
+
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  if (supplier.status !== "rejected") {
+    throw new AppError(
+      "Only rejected suppliers can be deleted.",
+      StatusCodes.BAD_REQUEST
+    );
+  }
+
+  if (!supplier.isSuspended) {
+    throw new AppError(
+      "Please suspend the supplier before deleting.",
+      StatusCodes.BAD_REQUEST
+    );
+  }
+
+  await JoinAsSupplier.findByIdAndDelete(id);
+};
+
 const joinAsSupplierService = {
   joinAsSupplier,
   getMySupplierInfo,
@@ -245,5 +269,6 @@ const joinAsSupplierService = {
   getSingleSupplier,
   updateSupplierStatus,
   suspendSupplier,
+  deleteSupplier,
 };
 export default joinAsSupplierService;

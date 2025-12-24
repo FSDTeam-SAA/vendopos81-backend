@@ -44,7 +44,11 @@ router.put(
   joinAsSupplierController.suspendSupplier
 );
 
-
+router.delete(
+  "/delete-supplier/:id",
+  auth(USER_ROLE.ADMIN),
+  joinAsSupplierController.deleteSupplier
+);
 
 const joinAsSupplierRouter = router;
 export default joinAsSupplierRouter;
