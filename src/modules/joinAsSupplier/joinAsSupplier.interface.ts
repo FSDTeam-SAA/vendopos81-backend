@@ -19,7 +19,7 @@ export interface IJoinAsSupplier {
   documentUrl: {
     public_id: string;
     url: string;
-  };
+  }[];
   rating?: number;
   totalSales?: number;
   createdAt: Date;

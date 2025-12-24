@@ -1,11 +1,8 @@
-import catchAsync from "../../utils/catchAsync";
 import { Request, Response } from "express";
-import subscriptionService from "./subscription.service";
-import sendResponse from "../../utils/sendResponse";
 import { StatusCodes } from "http-status-codes";
-
-
-
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import subscriptionService from "./subscription.service";
 
 const createSubscription = catchAsync(async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -14,7 +11,7 @@ const createSubscription = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Thank you for the subscription"
+    message: "Thank you for the subscription",
   });
 });
 
@@ -23,4 +20,3 @@ const subscriptionController = {
 };
 
 export default subscriptionController;
-
