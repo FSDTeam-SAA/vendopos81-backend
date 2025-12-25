@@ -1,12 +1,11 @@
 import { Router } from "express";
-import userRouter from "../modules/user/user.router";
 import authRouter from "../modules/auth/auth.router";
 import contactRouter from "../modules/contact/contact.router";
-import subscriptionRouter from "../modules/subscription/subscription.router";
+import joinAsDriverRouter from "../modules/joinAsDriver/joinAsDriver.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
 import productRouter from "../modules/product/product.router";
-import joinAsDriverRouter  from "../modules/joinAsDriver/joinAsDriver.router";
-
+import subscriptionRouter from "../modules/subscription/subscription.router";
+import userRouter from "../modules/user/user.router";
 
 const router = Router();
 
@@ -30,14 +29,15 @@ const moduleRoutes = [
   {
     path: "/join-as-supplier",
     route: joinAsSupplierRouter,
-  },{
-    path: "/driver", 
+  },
+  {
+    path: "/driver",
     route: joinAsDriverRouter,
   },
   {
     path: "/product",
     route: productRouter,
-  }
+  },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

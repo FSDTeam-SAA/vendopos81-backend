@@ -4,27 +4,37 @@ import { uploadToCloudinary } from "../../utils/cloudinary";
 import sendEmail from "../../utils/sendEmail";
 import sendTemplateMail from "../../utils/sendTamplateMail";
 import { User } from "../user/user.model";
-import { IJoinAsDriver, IDriverQuery } from "./joinAsDriver.interface";
+import { IDriverQuery, IJoinAsDriver } from "./joinAsDriver.interface";
 import JoinAsDriver from "./joinAsDriver.model";
 
-const joinAsDriver = async (email: string, payload: IJoinAsDriver, files: any) => {
-
+const joinAsDriver = async (
+  email: string,
+  payload: IJoinAsDriver,
+  files: any
+) => {
   const user = await User.isUserExistByEmail(email);
-  if (!user) throw new AppError("Account does not exist", StatusCodes.NOT_FOUND);
-  
+  if (!user)
+    throw new AppError("Account does not exist", StatusCodes.NOT_FOUND);
+
   if (user.role === "driver") {
     throw new AppError("You are already a driver", StatusCodes.BAD_REQUEST);
   }
 
-
   const existingRequest = await JoinAsDriver.findOne({ userId: user._id });
-  if (existingRequest && (existingRequest.status === "pending" || existingRequest.status === "approved")) {
-    throw new AppError(`Request already ${existingRequest.status}`, StatusCodes.BAD_REQUEST);
+  if (
+    existingRequest &&
+    (existingRequest.status === "pending" ||
+      existingRequest.status === "approved")
+  ) {
+    throw new AppError(
+      `Request already ${existingRequest.status}`,
+      StatusCodes.BAD_REQUEST
+    );
   }
 
   //  Extract Files from the correct field
   // When using upload.fields, req.files is an object.
-  const documentFiles = files && 'documents' in files ? files.documents : []; 
+  const documentFiles = files && "documents" in files ? files.documents : [];
 
   // Validation Check
   if (!documentFiles || documentFiles.length === 0) {
@@ -36,9 +46,9 @@ const joinAsDriver = async (email: string, payload: IJoinAsDriver, files: any) =
   for (const file of documentFiles) {
     // Note: ensure your uploadToCloudinary utility is imported correctly
     const uploaded = await uploadToCloudinary(file.path, "drivers/documents");
-    uploadedImages.push({ 
-      url: uploaded.secure_url, 
-      public_id: uploaded.public_id 
+    uploadedImages.push({
+      url: uploaded.secure_url,
+      public_id: uploaded.public_id,
     });
   }
 
@@ -53,7 +63,10 @@ const joinAsDriver = async (email: string, payload: IJoinAsDriver, files: any) =
 
 const getMyDriverInfo = async (email: string) => {
   const user = await User.isUserExistByEmail(email);
-  return await JoinAsDriver.findOne({ userId: user?._id }).populate("userId", "firstName lastName email image");
+  return await JoinAsDriver.findOne({ userId: user?._id }).populate(
+    "userId",
+    "firstName lastName email image"
+  );
 };
 
 const getAllDrivers = async (query: IDriverQuery) => {
@@ -64,19 +77,26 @@ const getAllDrivers = async (query: IDriverQuery) => {
   const filter: any = {};
   if (query.status) filter.status = query.status;
 
-  const search = query.search ? {
-    $or: [
-      { firstName: { $regex: query.search, $options: "i" } },
-      { email: { $regex: query.search, $options: "i" } },
-    ]
-  } : {};
+  const search = query.search
+    ? {
+        $or: [
+          { firstName: { $regex: query.search, $options: "i" } },
+          { email: { $regex: query.search, $options: "i" } },
+        ],
+      }
+    : {};
 
   const drivers = await JoinAsDriver.find({ ...filter, ...search })
     .populate("userId", "firstName lastName email image")
-    .skip(skip).limit(limit).sort({ createdAt: -1 });
+    .skip(skip)
+    .limit(limit)
+    .sort({ createdAt: -1 });
 
   const total = await JoinAsDriver.countDocuments({ ...filter, ...search });
-  return { data: drivers, meta: { page, limit, total, totalPage: Math.ceil(total / limit) } };
+  return {
+    data: drivers,
+    meta: { page, limit, total, totalPage: Math.ceil(total / limit) },
+  };
 };
 
 const updateDriverStatus = async (id: string, status: string) => {
@@ -90,7 +110,12 @@ const updateDriverStatus = async (id: string, status: string) => {
     await sendEmail({
       to: driver.email,
       subject: "Driver Account Approved",
-      html: sendTemplateMail({ type: "success", email: driver.email, subject: "Approved", message: "You are now an official driver!" }),
+      html: sendTemplateMail({
+        type: "success",
+        email: driver.email,
+        subject: "Approved",
+        message: "You are now an official driver!",
+      }),
     });
   }
 };
@@ -131,5 +156,5 @@ export const joinAsDriverService = {
   getAllDrivers,
   updateDriverStatus,
   suspendDriver,
-  getSingleDriver
+  getSingleDriver,
 };

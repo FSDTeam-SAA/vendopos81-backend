@@ -6,7 +6,7 @@ import { joinAsDriverService } from "./joinAsDriver.service";
 const joinAsDriver = catchAsync(async (req, res) => {
   // 1. Correct the type casting to a Record/Object
   const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-  
+
   const { email } = req.user;
 
   // 2. Pass the files object as is to the service
@@ -23,21 +23,33 @@ const joinAsDriver = catchAsync(async (req, res) => {
 const getMyDriverInfo = catchAsync(async (req, res) => {
   const { email } = req.user;
   const result = await joinAsDriverService.getMyDriverInfo(email);
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, data: result });
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    data: result,
+  });
 });
 
 const updateDriverStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   await joinAsDriverService.updateDriverStatus(id, status);
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Status updated" });
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Status updated",
+  });
 });
 
 const suspendDriver = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { days } = req.body; // Optional days for temporary suspension
   await joinAsDriverService.suspendDriver(id, days);
-  sendResponse(res, { statusCode: StatusCodes.OK, success: true, message: "Suspension toggled" });
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Suspension toggled",
+  });
 });
 
 const getAllDrivers = catchAsync(async (req, res) => {
@@ -68,6 +80,6 @@ export const joinAsDriverController = {
   updateDriverStatus,
   suspendDriver,
   getAllDrivers,
-  getSingleDriver
+  getSingleDriver,
   // ... include others similar to supplier
 };
