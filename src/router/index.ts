@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authRouter from "../modules/auth/auth.router";
+import categoryRouter from "../modules/category/category.router";
 import contactRouter from "../modules/contact/contact.router";
 import joinAsDriverRouter from "../modules/joinAsDriver/joinAsDriver.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
@@ -37,6 +38,10 @@ const moduleRoutes = [
   {
     path: "/product",
     route: productRouter,
+  },
+  {
+    path: "/category",
+    route: categoryRouter,
   },
 ];
 

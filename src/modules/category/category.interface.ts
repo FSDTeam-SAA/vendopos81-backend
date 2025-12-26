@@ -8,6 +8,6 @@
 export interface ICategory {
   name: string;
   slug: string;
-  subcategories?: ICategory[];
+  subcategories?: string[];
   isActive?: boolean;
 }
