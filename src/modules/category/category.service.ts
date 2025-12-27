@@ -5,22 +5,32 @@ import { ICategory } from "./category.interface";
 import category from "./category.model";
 
 const createCategory = async (payload: ICategory) => {
-  const isExist = await category.findOne({
-    name: { $regex: `^${payload.name}$`, $options: "i" },
+  const isExistRegion = await category.findOne({
+    name: { $regex: `^${payload.region}$`, $options: "i" },
   });
 
-  if (isExist) {
+  if (isExistRegion) {
     throw new AppError(
-      `Category with name ${payload.name} already exists`,
+      `${payload.region} category already exists`,
       StatusCodes.CONFLICT
     );
   }
 
-  const slug = generateShopSlug(payload.name);
+  const isExistProductType = await category.findOne({
+    name: { $regex: `^${payload.productType}$`, $options: "i" },
+  });
+
+  if (isExistProductType) {
+    throw new AppError(
+      `${payload.productType} category already exists ${payload.region}`,
+      StatusCodes.CONFLICT
+    );
+  }
+
+  const slug = generateShopSlug(payload.region || payload.productType || "");
 
   const result = await category.create({
     ...payload,
-    name: payload.name,
     slug,
   });
 
@@ -54,8 +64,10 @@ const updateCategory = async (id: string, payload: ICategory) => {
     throw new AppError("Category not found", StatusCodes.NOT_FOUND);
   }
 
-  if (payload.name) {
-    payload.slug = generateShopSlug(payload.name);
+  if (payload.productName) {
+    payload.slug = generateShopSlug(
+      payload.region || payload.productType || ""
+    );
   }
 
   const result = await category.findByIdAndUpdate(id, payload, { new: true });

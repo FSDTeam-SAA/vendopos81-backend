@@ -3,29 +3,13 @@ import { ICategory } from "./category.interface";
 
 const CategorySchema = new Schema<ICategory>(
   {
-    name: { type: String, required: true },
-    slug: { type: String, lowercase: true, unique: true },
-    subcategories: [{ type: String }],
-    isActive: { type: Boolean, default: true },
+    region: { type: String, required: false },
+    slug: { type: String, unique: true },
+    productType: { type: String, required: false },
+    productName: { type: [String], required: false },
   },
   { timestamps: true, versionKey: false }
 );
-
-// CategorySchema.pre("save", function (next) {
-//   if (this.name) {
-//     this.name = this.name.toLowerCase();
-//   }
-
-//   if (this.slug) {
-//     this.slug = this.slug.toLowerCase();
-//   }
-
-//   if (this.subcategories?.length) {
-//     this.subcategories = this.subcategories.map((sub) => sub.toLowerCase());
-//   }
-
-//   next();
-// });
 
 const category = model<ICategory>("Category", CategorySchema);
 
