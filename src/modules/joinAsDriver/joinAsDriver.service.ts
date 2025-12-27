@@ -6,6 +6,7 @@ import sendTemplateMail from "../../utils/sendTamplateMail";
 import { User } from "../user/user.model";
 import { IDriverQuery, IJoinAsDriver } from "./joinAsDriver.interface";
 import JoinAsDriver from "./joinAsDriver.model";
+import mongoose from "mongoose";
 
 const joinAsDriver = async (
   email: string,
@@ -196,6 +197,71 @@ const approveDriver = async (driverId: string) => {
   return result;
 };
 
+const directRegisterDriver = async (payload: any, files: any) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Check if Email or Phone already exists to prevent Duplicate Key errors
+    const isUserExist = await User.findOne({ email: payload.email });
+    if (isUserExist) {
+      throw new AppError("Email already registered. Please login.", StatusCodes.CONFLICT);
+    }
+
+    const isPhoneExist = await JoinAsDriver.findOne({ phone: payload.phone });
+    if (isPhoneExist) {
+      throw new AppError("Phone number already in use by another driver.", StatusCodes.CONFLICT);
+    }
+
+    // 2. Create the User Account
+    const userData = {
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      email: payload.email,
+      password: payload.password,
+      phone: payload.phone,
+      role: "customer", // Role stays customer until Admin approves
+      isVerified: false, 
+    };
+
+    const newUser = await User.create([userData], { session });
+
+    // 3. Handle File Uploads to Cloudinary
+    const documentFiles = files?.documents || [];
+    if (documentFiles.length === 0) {
+      throw new AppError("Driver documents are required", StatusCodes.BAD_REQUEST);
+    }
+
+    const uploadedImages = [];
+    for (const file of documentFiles) {
+      const uploaded = await uploadToCloudinary(file.path, "drivers/documents");
+      uploadedImages.push({
+        url: uploaded.secure_url, // Corrected key from utility
+        public_id: uploaded.public_id,
+      });
+    }
+
+    // 4. Create the Driver Profile
+    const driverData = {
+      ...payload,
+      userId: newUser[0]._id, // Use the ID from the created user
+      documentUrl: uploadedImages,
+      status: "pending",
+    };
+
+    const newDriver = await JoinAsDriver.create([driverData], { session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return { user: newUser[0], driver: newDriver[0] };
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
 export const joinAsDriverService = {
   joinAsDriver,
   getMyDriverInfo,
@@ -204,5 +270,6 @@ export const joinAsDriverService = {
   suspendDriver,
   getSingleDriver,
   deleteDriver,
-  approveDriver
+  approveDriver,
+  directRegisterDriver
 };

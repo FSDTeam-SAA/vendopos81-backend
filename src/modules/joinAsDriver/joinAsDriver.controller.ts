@@ -84,6 +84,22 @@ const deleteDriver = catchAsync(async (req, res) => {
   });
 })
 
+const directRegisterDriver = catchAsync(async (req, res) => {
+  // 1. Cast files to the correct Multer format
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  
+  // 2. Pass body (User + Driver info) and files to the service
+  const result = await joinAsDriverService.directRegisterDriver(req.body, files);
+
+  // 3. Send back a unified response
+  sendResponse(res, {
+    statusCode: StatusCodes.CREATED,
+    success: true,
+    message: "Account created and driver application submitted successfully. Please check your email for verification.",
+    data: result,
+  });
+});
+
 export const joinAsDriverController = {
   joinAsDriver,
   getMyDriverInfo,
@@ -91,6 +107,7 @@ export const joinAsDriverController = {
   suspendDriver,
   getAllDrivers,
   getSingleDriver,
-  deleteDriver
+  deleteDriver,
+  directRegisterDriver
   
 };
