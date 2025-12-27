@@ -22,15 +22,14 @@ export interface ISEO {
 }
 
 export interface IProduct {
-  _id?: Types.ObjectId;
   supplierId: Types.ObjectId;
-  // categoryId?: Types.ObjectId;
-  name: string;
+  categoryId?: Types.ObjectId;
+  title: string;
   slug: string;
   description: string;
   images: IProductImage[];
-  regionCategory: Types.ObjectId;
   productType: string;
+  productName?: string;
   variants: IProductVariant[];
   priceFrom?: number;
   shelfLife?: string;

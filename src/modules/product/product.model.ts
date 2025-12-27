@@ -44,24 +44,21 @@ const ProductSchema = new Schema<IProduct>(
       required: true,
       index: true,
     },
-    // categoryId: {
-    //   type: Schema.Types.ObjectId,
-    //   ref: "Category",
-    //   index: true,
-    // },
-    name: { type: String, required: true, trim: true },
+    categoryId: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      index: true,
+    },
+    title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true },
     description: { type: String, required: true },
     images: {
       type: [ProductImageSchema],
       required: true,
     },
-    regionCategory: {
-      type: Schema.Types.ObjectId,
-      ref: "category",
-      required: true,
-    },
+
     productType: { type: String, required: true },
+    productName: { type: String, required: true },
     variants: {
       type: [ProductVariantSchema],
       required: true,
