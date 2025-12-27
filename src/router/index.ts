@@ -4,7 +4,7 @@ import categoryRouter from "../modules/category/category.router";
 import contactRouter from "../modules/contact/contact.router";
 import joinAsDriverRouter from "../modules/joinAsDriver/joinAsDriver.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
-import productRouter from "../modules/product/product.router";
+// import productRouter from "../modules/product/product.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
 
@@ -35,10 +35,10 @@ const moduleRoutes = [
     path: "/driver",
     route: joinAsDriverRouter,
   },
-  {
-    path: "/product",
-    route: productRouter,
-  },
+  // {
+  //   path: "/product",
+  //   route: productRouter,
+  // },
   {
     path: "/category",
     route: categoryRouter,

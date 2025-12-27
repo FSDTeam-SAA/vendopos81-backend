@@ -51,5 +51,12 @@ router.delete(
   joinAsDriverController.deleteDriver
 );
 
+// Public route for first-time visitors
+router.post(
+  "/direct-register", 
+  upload.fields([{ name: "documents", maxCount: 5 }]),
+  joinAsDriverController.directRegisterDriver 
+);
+
 
 export default router;
