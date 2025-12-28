@@ -73,6 +73,10 @@ const JoinAsDriverSchema = new Schema<IJoinAsDriver>(
       type: Date, 
       default: null 
     },
+    isOnline: { 
+      type: Boolean, 
+      default: false 
+    },
   },
   {
     timestamps: true,

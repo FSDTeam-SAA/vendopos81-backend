@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-const config = dotenv.config() as { parsed: { bcryptSaltRounds: string } };
-import bcrypt from "bcrypt";
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
 import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary";
@@ -10,50 +7,6 @@ import { User } from "../user/user.model";
 import { IDriverQuery, IJoinAsDriver } from "./joinAsDriver.interface";
 import JoinAsDriver from "./joinAsDriver.model";
 import mongoose from "mongoose";
-
-
-const joinAsDriver = async (
-  email: string,
-  payload: IJoinAsDriver,
-  files: any
-) => {
-  const user = await User.isUserExistByEmail(email);
-  if (!user) throw new AppError("Account does not exist", StatusCodes.NOT_FOUND);
-
-  // 1. Role Conflict Validation
-  if (user.role === "driver") throw new AppError("You are already a driver", StatusCodes.BAD_REQUEST);
-  if (user.role === "supplier") {
-    throw new AppError("Supplier accounts cannot register as drivers. Use a different email.", StatusCodes.FORBIDDEN);
-  }
-
-  // 2. Check for existing pending/approved applications
-  const existingRequest = await JoinAsDriver.findOne({ userId: user._id });
-  if (existingRequest && (existingRequest.status === "pending" || existingRequest.status === "approved")) {
-    throw new AppError(`Request already ${existingRequest.status}`, StatusCodes.BAD_REQUEST);
-  }
-
-  // 3. File Processing
-  const documentFiles = files?.documents || [];
-  if (documentFiles.length === 0) throw new AppError("Documents required", StatusCodes.BAD_REQUEST);
-
-  const uploadedImages = [];
-  for (const file of documentFiles) {
-    const uploaded = await uploadToCloudinary(file.path, "drivers/documents");
-    uploadedImages.push({
-      url: uploaded.secure_url,
-      public_id: uploaded.public_id,
-    });
-  }
-
-  // 4. Create Driver Profile linked to existing User
-  return await JoinAsDriver.create({
-    ...payload,
-    documentUrl: uploadedImages,
-    userId: user._id,
-    status: "pending",
-  });
-};
-
 
 const getMyDriverInfo = async (email: string) => {
   const user = await User.isUserExistByEmail(email);
@@ -99,52 +52,60 @@ const updateDriverStatus = async (id: string, status: "approved" | "rejected") =
   session.startTransaction();
 
   try {
-    const driverApplication = await JoinAsDriver.findById(id);
-    if (!driverApplication) {
-      throw new AppError("Driver application not found", StatusCodes.NOT_FOUND);
-    }
+    const driverApp = await JoinAsDriver.findById(id).session(session);
+    if (!driverApp) throw new AppError("Application not found", StatusCodes.NOT_FOUND);
 
-    // 1. Update the Application Status
-    const updatedApplication = await JoinAsDriver.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true, session }
-    );
-
-    // 2. If Approved: Promote the User Role
     if (status === "approved") {
-      await User.findByIdAndUpdate(
-        driverApplication.userId,
-        { role: "driver" },
-        { session }
-      );
+      const user = await User.findById(driverApp.userId).session(session);
+      if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
 
-      // 3. Send Success Email
+      const tempPassword = Math.random().toString(36).slice(-8);
+
+      // 1. Promote User & Set Password (Model hashes this automatically)
+      user.role = "driver";
+      user.password = tempPassword; 
+      user.isVerified = true;
+      await user.save({ session });
+
+      // 2. Update Application Status
+      driverApp.status = "approved";
+      await driverApp.save({ session });
+
+      // 3. Send Unified Approval Email
       await sendEmail({
-        to: driverApplication.email,
-        subject: "Congratulations! Your Driver Application is Approved",
+        to: driverApp.email,
+        subject: "Application Approved - Welcome to VendoPOS!",
         html: sendTemplateMail({
           type: "success",
-          email: driverApplication.email,
-          subject: "Application Approved",
-          message: `Hello ${driverApplication.firstName}, your application has been approved. You can now log in and access the Driver Dashboard.`,
+          email: driverApp.email,
+          subject: "Welcome to the Team!",
+          message: `
+            <h1 style="color: #2ecc71;">Congratulations!</h1>
+            <p>Your application is approved. Use these credentials to log in to the Driver Dashboard:</p>
+            <div style="background: #f4f4f4; padding: 10px; border-radius: 5px;">
+              <p><b>Email:</b> ${driverApp.email}</p>
+              <p><b>Temporary Password:</b> ${tempPassword}</p>
+            </div>
+            <p>Please change your password immediately after your first login.</p>
+          `
         }),
       });
-    }
+    } else {
+      // Handle Rejection
+      driverApp.status = "rejected";
+      await driverApp.save({ session });
 
-    // 4. If Rejected: Optional notification
-    else if (status === "rejected") {
       await sendEmail({
-        to: driverApplication.email,
-        subject: "Update on your Driver Application",
-        html: `<h1>Application Update</h1><p>Sorry, your application was not approved at this time.</p>`,
+        to: driverApp.email,
+        subject: "Driver Application Update",
+        html: `<p>Hello ${driverApp.firstName}, unfortunately your application was not approved at this time.</p>`,
       });
     }
 
     await session.commitTransaction();
-    return updatedApplication;
+    return { success: true, status };
   } catch (error) {
-    await session.abortTransaction();
+    await session.abortTransaction(); // If anything (including email) fails, nothing changes
     throw error;
   } finally {
     session.endSession();
@@ -164,11 +125,22 @@ const suspendDriver = async (id: string, suspensionDays?: number) => {
     suspendedUntil.setDate(suspendedUntil.getDate() + suspensionDays);
   }
 
-  return await JoinAsDriver.findByIdAndUpdate(
+  const result = await JoinAsDriver.findByIdAndUpdate(
     id,
     { isSuspended: !isCurrentlySuspended, suspendedUntil },
     { new: true }
   );
+
+  // Inform the User
+  await sendEmail({
+    to: driver.email,
+    subject: isCurrentlySuspended ? "Account Reinstated" : "Account Suspended",
+    html: isCurrentlySuspended 
+      ? "<h3>Welcome Back!</h3><p>Your driver account has been reactivated.</p>" 
+      : `<h3>Account Suspended</h3><p>Your account is temporarily suspended until ${suspendedUntil?.toDateString()}.</p>`
+  });
+
+  return result;
 };
 
 const getSingleDriver = async (id: string) => {
@@ -183,50 +155,37 @@ const getSingleDriver = async (id: string) => {
 };
 
 const deleteDriver = async (id: string) => {
-  const driver = await JoinAsDriver.findById(id);
-  if (!driver) {
-    throw new AppError("Driver application not found", StatusCodes.NOT_FOUND);
-  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const driver = await JoinAsDriver.findById(id).session(session);
+    if (!driver) throw new AppError("Driver not found", StatusCodes.NOT_FOUND);
 
-  await User.findByIdAndDelete(driver.userId, {
-    role: "customer",
-  });
-
-  if (driver.documentUrl?.length) {
-    for (const doc of driver.documentUrl) {
-      try {
+    // 1. Delete associated images from Cloudinary
+    if (driver.documentUrl?.length) {
+      for (const doc of driver.documentUrl) {
         await deleteFromCloudinary(doc.public_id);
-      } catch (error) {
-        console.log("Cloudinary delete failed:", error)
       }
     }
+
+    // 2. Decide: Delete User or just revert Role?
+    // Usually, we just revert the role back to 'customer'
+    await User.findByIdAndUpdate(driver.userId, { role: "customer" }, { session });
+
+    // 3. Delete the Driver Application
+    await JoinAsDriver.findByIdAndDelete(id).session(session);
+
+    await session.commitTransaction();
+    return { message: "Driver reverted to customer and application deleted" };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  await JoinAsDriver.findByIdAndDelete(id);
-
-  return { success: true, message: "Driver application deleted successfully" };
-
-}
-
-// When a driver is approved by Admin
-const approveDriver = async (driverId: string) => {
-  const result = await JoinAsDriver.findByIdAndUpdate(
-    driverId,
-    { status: "approved" },
-    { new: true }
-  );
-
-  if (!result) throw new AppError("Driver application not found", 404);
-
-  // Optional: Send "Welcome to the Team" Email
-  await sendEmail({
-    to: result.email,
-    subject: "Application Approved!",
-    html: "<h1>Congratulations!</h1><p>You can now start accepting deliveries.</p>"
-  });
-
-  return result;
 };
+
+
 
 const registerDriverUnified = async (payload: any, files: any, currentUser?: any) => {
   const session = await mongoose.startSession();
@@ -306,13 +265,13 @@ const registerDriverUnified = async (payload: any, files: any, currentUser?: any
 };
 
 export const joinAsDriverService = {
-  joinAsDriver,
+
   getMyDriverInfo,
   getAllDrivers,
   updateDriverStatus,
   suspendDriver,
   getSingleDriver,
   deleteDriver,
-  approveDriver,
-  registerDriverUnified
+  registerDriverUnified,
+
 };

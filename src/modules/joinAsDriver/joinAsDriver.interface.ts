@@ -19,6 +19,8 @@ export interface IJoinAsDriver {
     url: string;
   }[];
   isSuspended: boolean;
+  // Add this field to your JoinAsDriverSchema
+isOnline: boolean;
   suspendedUntil: Date | null;
   createdAt: Date;
   updatedAt: Date;

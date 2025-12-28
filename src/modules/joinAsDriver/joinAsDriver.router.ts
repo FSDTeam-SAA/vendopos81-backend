@@ -7,15 +7,7 @@ import { optionalAuth } from "../../middleware/optionalAuth";
 
 const router = Router();
 
-router.post(
-  "/register",
-  auth(USER_ROLE.CUSTOMER),
-  upload.fields([
-    { name: "documents", maxCount: 5 },
-    { name: "data", maxCount: 1 },
-  ]),
-  joinAsDriverController.joinAsDriver
-);
+
 
 router.get(
   "/my-info",
@@ -62,5 +54,6 @@ router.post(
   upload.fields([{ name: "documents", maxCount: 5 }]),
   joinAsDriverController.registerDriverUnified
 );
+
 
 export default router;
