@@ -3,6 +3,7 @@ import auth from "../../middleware/auth";
 import { upload } from "../../middleware/multer.middleware";
 import { USER_ROLE } from "../user/user.constant";
 import { joinAsDriverController } from "./joinAsDriver.controller";
+import { optionalAuth } from "../../middleware/optionalAuth";
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.post(
   ]),
   joinAsDriverController.joinAsDriver
 );
+
 router.get(
   "/my-info",
   auth(USER_ROLE.CUSTOMER, USER_ROLE.DRIVER),
@@ -51,12 +53,14 @@ router.delete(
   joinAsDriverController.deleteDriver
 );
 
-// Public route for first-time visitors
-router.post(
-  "/direct-register", 
-  upload.fields([{ name: "documents", maxCount: 5 }]),
-  joinAsDriverController.directRegisterDriver 
-);
 
+
+// Public route for first-time visitors and Also Checking if user is logged in
+router.post(
+  "/register-unified",
+  optionalAuth, // Extracts user info IF token exists, else moves on
+  upload.fields([{ name: "documents", maxCount: 5 }]),
+  joinAsDriverController.registerDriverUnified
+);
 
 export default router;

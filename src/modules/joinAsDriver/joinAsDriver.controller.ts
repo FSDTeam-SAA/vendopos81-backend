@@ -32,12 +32,15 @@ const getMyDriverInfo = catchAsync(async (req, res) => {
 
 const updateDriverStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
-  await joinAsDriverService.updateDriverStatus(id, status);
+  const { status } = req.body; // Expecting "approved" or "rejected"
+
+  const result = await joinAsDriverService.updateDriverStatus(id, status);
+
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Status updated",
+    message: `Driver application ${status} successfully`,
+    data: result,
   });
 });
 
@@ -84,18 +87,17 @@ const deleteDriver = catchAsync(async (req, res) => {
   });
 })
 
-const directRegisterDriver = catchAsync(async (req, res) => {
-  // 1. Cast files to the correct Multer format
+
+const registerDriverUnified = catchAsync(async (req, res) => {
   const files = req.files as { [fieldname: string]: Express.Multer.File[] };
   
-  // 2. Pass body (User + Driver info) and files to the service
-  const result = await joinAsDriverService.directRegisterDriver(req.body, files);
+  // req.user is populated by optionalAuth, otherwise it is undefined
+  const result = await joinAsDriverService.registerDriverUnified(req.body, files, req.user);
 
-  // 3. Send back a unified response
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
     success: true,
-    message: "Account created and driver application submitted successfully. Please check your email for verification.",
+    message: "Application submitted successfully",
     data: result,
   });
 });
@@ -108,6 +110,5 @@ export const joinAsDriverController = {
   getAllDrivers,
   getSingleDriver,
   deleteDriver,
-  directRegisterDriver
-  
+  registerDriverUnified
 };
