@@ -1,8 +1,11 @@
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { USER_ROLE } from "./user.constant";
 
 export interface IUser {
+  userId: any;
+  id: any;
   _id: string;
+  supplierId?: Types.ObjectId;
   firstName: string;
   lastName: string;
   email: string;

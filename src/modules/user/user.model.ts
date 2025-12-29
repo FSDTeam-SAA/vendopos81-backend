@@ -6,13 +6,17 @@ import { IUser, userModel } from "./user.interface";
 
 const userSchema = new Schema<IUser>(
   {
+    supplierId: {
+      type: Schema.Types.ObjectId,
+      ref: "Supplier",
+    },
     firstName: {
       type: String,
-      required: true,
+      // required: true,
     },
     lastName: {
       type: String,
-      required: true,
+      // required: true,
     },
     email: {
       type: String,
@@ -25,7 +29,7 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: true,
+      // required: true,
     },
     street: {
       type: String,

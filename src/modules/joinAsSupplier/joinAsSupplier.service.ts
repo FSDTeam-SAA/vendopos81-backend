@@ -1,76 +1,174 @@
+import bcrypt from "bcrypt";
 import { StatusCodes } from "http-status-codes";
+import mongoose from "mongoose";
+import config from "../../config";
 import AppError from "../../errors/AppError";
 import generateShopSlug from "../../middleware/generateShopSlug";
 import { uploadToCloudinary } from "../../utils/cloudinary";
 import sendEmail from "../../utils/sendEmail";
-import sendTemplateMail from "../../utils/sendTamplateMail";
+import { createToken } from "../../utils/tokenGenerate";
+import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
+import { IUser } from "../user/user.interface";
 import { User } from "../user/user.model";
 import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
 import JoinAsSupplier from "./joinAsSupplier.model";
 
+
 const joinAsSupplier = async (
-  email: string,
   payload: IJoinAsSupplier,
-  files: any
+  files: Express.Multer.File[],
+  currentUser?: IUser
 ) => {
-  const user = await User.isUserExistByEmail(email);
-  if (!user) {
-    throw new Error("Your account does not exist");
-  }
-
-  if (user.role === "supplier") {
-    throw new Error("You are already a supplier");
-  }
-
-  const existingRequest = await JoinAsSupplier.findOne({
-    userId: user._id,
-  });
-
-  if (existingRequest) {
-    if (existingRequest.status === "pending") {
-      throw new Error("Your supplier request is under review");
-    }
-
-    if (existingRequest.status === "approved") {
-      throw new Error("You are already approved as a supplier");
-    }
-  }
-
-  const shopSlug = generateShopSlug(payload.shopName);
-
-  const slugExists = await JoinAsSupplier.findOne({ shopSlug });
-  if (slugExists) {
-    throw new Error("Shop name already exists, choose another name");
-  }
-
   if (!files || files.length === 0) {
     throw new AppError(
-      "At least one document is required",
+      "You have to upload at least one document",
       StatusCodes.BAD_REQUEST
     );
   }
 
-  const uploadedImages: { url: string; publickey: string }[] = [];
+  /** Upload documents */
+  const uploadedDocuments: { url: string; public_id: string }[] = [];
 
-  if (files && files.length > 0) {
-    for (const file of files) {
-      const uploaded = await uploadToCloudinary(file.path, "products");
-      uploadedImages.push({
-        url: uploaded.secure_url,
-        publickey: uploaded.public_id,
-      });
-    }
+  for (const file of files) {
+    const uploaded = await uploadToCloudinary(file.path, "joinAsSupplier");
+    uploadedDocuments.push({
+      url: uploaded.secure_url,
+      public_id: uploaded.public_id,
+    });
   }
 
-  const result = await JoinAsSupplier.create({
-    ...payload,
-    documentUrl: uploadedImages,
-    shopSlug,
-    userId: user._id,
-    status: "pending",
-  });
+  const session = await mongoose.startSession();
 
-  return result;
+  try {
+    session.startTransaction();
+
+    let user: IUser;
+    let accessToken: string | null = null;
+    let tempPassword: string | null = null;
+
+    /** ===============================
+     * CASE 1️⃣ Logged-in user
+     ===============================*/
+
+    if (currentUser) {
+      const dbUser = await User.findById(currentUser.userId).session(session);
+
+      if (!dbUser) {
+        throw new AppError("User not found", StatusCodes.NOT_FOUND);
+      }
+
+      const existingRequest = await JoinAsSupplier.findOne({
+        userId: dbUser._id,
+        status: { $in: ["pending", "approved"] },
+      }).session(session);
+
+      if (existingRequest) {
+        throw new AppError(
+          existingRequest.status === "approved"
+            ? "You are already a supplier"
+            : "Your supplier request is under review",
+          StatusCodes.BAD_REQUEST
+        );
+      }
+
+      user = dbUser;
+    } else {
+      const isExistingUser = await User.isUserExistByEmail(payload.email);
+      if (isExistingUser) {
+        throw new AppError(
+          "You already have an account",
+          StatusCodes.BAD_REQUEST
+        );
+      }
+
+      /** ===============================
+     * CASE 2️⃣ Guest user
+     ===============================*/
+      const password = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      const hashedOtp = await bcrypt.hash(otp, 10);
+      const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+      const createdUsers = await User.create(
+        [
+          {
+            email: payload.email,
+            phone: payload.phone,
+            password,
+            role: "supplier",
+            isVerified: false,
+            otp: hashedOtp,
+            otpExpires,
+          },
+        ],
+        { session }
+      );
+
+      user = createdUsers[0];
+      tempPassword = password;
+
+      accessToken = createToken(
+        { userId: user._id, email: user.email, role: user.role },
+        config.JWT_SECRET as string,
+        config.JWT_EXPIRES_IN as string
+      );
+    }
+
+    const isAlreadySupplier = await JoinAsSupplier.findOne({
+      userId: user._id,
+    }).session(session);
+    if (isAlreadySupplier && isAlreadySupplier.status !== "pending") {
+      throw new AppError(
+        "You already have a supplier request",
+        StatusCodes.BAD_REQUEST
+      );
+    } else if (isAlreadySupplier && isAlreadySupplier.status === "approved") {
+      throw new AppError("You are already a supplier", StatusCodes.BAD_REQUEST);
+    }
+
+    const shopSlug = generateShopSlug(payload.shopName);
+
+    const supplierRequest = await JoinAsSupplier.create(
+      [
+        {
+          ...payload,
+          userId: user._id,
+          shopSlug,
+          documentUrl: uploadedDocuments,
+          status: "pending",
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    await session.endSession();
+
+    /** Send OTP AFTER commit */
+    if (tempPassword) {
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your email",
+        html: verificationCodeTemplate("OTP sent"),
+      });
+    }
+
+    return {
+      user,
+      supplierRequest: supplierRequest[0],
+      tempPassword,
+      accessToken,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    await session.endSession();
+
+    throw new AppError(
+      (error as Error).message || "Failed to join as supplier",
+      StatusCodes.BAD_REQUEST
+    );
+  }
 };
 
 const getMySupplierInfo = async (email: string) => {
@@ -168,48 +266,44 @@ const getSingleSupplier = async (id: string) => {
 };
 
 const updateSupplierStatus = async (id: string, status: string) => {
-  const supplier = await JoinAsSupplier.findById(id);
-  if (!supplier) {
-    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
-  }
-
-  const validStatuses = ["pending", "approved", "rejected"];
-  if (!validStatuses.includes(status)) {
-    throw new AppError("Invalid status value", StatusCodes.BAD_REQUEST);
-  }
-
-  await JoinAsSupplier.findByIdAndUpdate(id, { status }, { new: true });
-
-  // ✅ Email content
-  if (status === "approved") {
-    await User.findByIdAndUpdate(supplier.userId, { role: "supplier" });
-
-    await sendEmail({
-      to: supplier.email,
-      subject: "Your Supplier Account is Approved",
-      html: sendTemplateMail({
-        type: "success",
-        email: supplier.email,
-        subject: "Supplier Account Approved",
-        message: `Congratulations! Your supplier account has been approved. You can now start adding products "${supplier.shopName}".`,
-      }),
-    });
-  } else if (status === "rejected") {
-    await sendEmail({
-      to: supplier.email,
-      subject: "Your Supplier Application is Rejected",
-      html: sendTemplateMail({
-        type: "rejected",
-        email: supplier.email,
-        subject: "Supplier Application Rejected",
-        message: `We are sorry! Your supplier application has been rejected. Please review your information and try again later.`,
-      }),
-    });
-  }
-
+  // const supplier = await JoinAsSupplier.findById(id);
+  // if (!supplier) {
+  //   throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  // }
+  // const validStatuses = ["pending", "approved", "rejected"];
+  // if (!validStatuses.includes(status)) {
+  //   throw new AppError("Invalid status value", StatusCodes.BAD_REQUEST);
+  // }
+  // await JoinAsSupplier.findByIdAndUpdate(id, { status }, { new: true });
+  // // ✅ Email content
+  // if (status === "approved") {
+  //   await User.findByIdAndUpdate(supplier.userId, { role: "supplier" });
+  //   await sendEmail({
+  //     to: supplier.email,
+  //     subject: "Your Supplier Account is Approved",
+  //     html: sendTemplateMail({
+  //       type: "success",
+  //       email: supplier.email,
+  //       subject: "Supplier Account Approved",
+  //       message: `Congratulations! Your supplier account has been approved. You can now start adding products "${supplier.shopName}".`,
+  //     }),
+  //   });
+  // } else if (status === "rejected") {
+  //   await sendEmail({
+  //     to: supplier.email,
+  //     subject: "Your Supplier Application is Rejected",
+  //     html: sendTemplateMail({
+  //       type: "rejected",
+  //       email: supplier.email,
+  //       subject: "Supplier Application Rejected",
+  //       message: `We are sorry! Your supplier application has been rejected. Please review your information and try again later.`,
+  //     }),
+  //   });
+  // }
   // return result;
 };
 
+//! Check this one later-------------------------
 // const addRejectReason = async (id: string, reason: string) => {
 //   const supplier = await JoinAsSupplier.findById(id);
 //   if (!supplier) {

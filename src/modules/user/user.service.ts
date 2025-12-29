@@ -1,8 +1,8 @@
 import bcrypt from "bcrypt";
 import { StatusCodes } from "http-status-codes";
+import mongoose from "mongoose";
 import config from "../../config";
 import AppError from "../../errors/AppError";
-import JoinAsDriver from "../joinAsDriver/joinAsDriver.model";
 import {
   deleteFromCloudinary,
   uploadToCloudinary,
@@ -10,9 +10,9 @@ import {
 import sendEmail from "../../utils/sendEmail";
 import { createToken } from "../../utils/tokenGenerate";
 import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
+import JoinAsDriver from "../joinAsDriver/joinAsDriver.model";
 import { IUser } from "./user.interface";
 import { User } from "./user.model";
-import mongoose from "mongoose";
 
 const registerUser = async (payload: IUser) => {
   const existingUser = await User.isUserExistByEmail(payload.email);
@@ -267,10 +267,11 @@ const registerDriver = async (payload: any, files: any) => {
       state: payload.state,
       zipCode: payload.zipCode,
       // Handle files from upload.fields(['documents'])
-      documentUrl: files?.documents?.map((file: any) => ({
-        public_id: file.filename,
-        url: file.path,
-      })) || [],
+      documentUrl:
+        files?.documents?.map((file: any) => ({
+          public_id: file.filename,
+          url: file.path,
+        })) || [],
       status: "pending",
     };
 
@@ -301,7 +302,7 @@ const userService = {
   getMyProfile,
   updateUserProfile,
   getAdminId,
-  registerDriver
+  registerDriver,
 };
 
 export default userService;

@@ -1,15 +1,17 @@
 import { StatusCodes } from "http-status-codes";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
+import { IUser } from "../user/user.interface";
 import joinAsSupplierService from "./joinAsSupplier.service";
 
 const joinAsSupplier = catchAsync(async (req, res) => {
   const files = req.files as Express.Multer.File[];
-  const { email } = req.user;
+  const currentUser = req.user as IUser;
+
   const result = await joinAsSupplierService.joinAsSupplier(
-    email,
     req.body,
-    files
+    files,
+    currentUser as any
   );
 
   sendResponse(res, {
