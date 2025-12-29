@@ -5,13 +5,21 @@ import { IUser } from "../user/user.interface";
 import joinAsSupplierService from "./joinAsSupplier.service";
 
 const joinAsSupplier = catchAsync(async (req, res) => {
-  const files = req.files as Express.Multer.File[];
-  const currentUser = req.user as IUser;
+  const files = req.files as {
+    documents?: Express.Multer.File[];
+    logo?: Express.Multer.File[];
+  };
+
+  const documents = files?.documents || [];
+  const logoFile = files?.logo?.[0]; // single logo
+
+  const currentUser = req.user as IUser | undefined;
 
   const result = await joinAsSupplierService.joinAsSupplier(
     req.body,
-    files,
-    currentUser as any
+    documents,
+    logoFile,
+    currentUser
   );
 
   sendResponse(res, {
@@ -21,6 +29,7 @@ const joinAsSupplier = catchAsync(async (req, res) => {
     data: result,
   });
 });
+
 
 const getMySupplierInfo = catchAsync(async (req, res) => {
   const { email } = req.user;

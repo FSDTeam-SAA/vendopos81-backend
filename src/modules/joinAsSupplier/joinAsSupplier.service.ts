@@ -16,25 +16,45 @@ import JoinAsSupplier from "./joinAsSupplier.model";
 
 const joinAsSupplier = async (
   payload: IJoinAsSupplier,
-  files: Express.Multer.File[],
+  documents: Express.Multer.File[],
+  logoFile?: Express.Multer.File,
   currentUser?: IUser
 ) => {
-  if (!files || files.length === 0) {
+  if (!documents || documents.length === 0) {
     throw new AppError(
-      "You have to upload at least one document",
+      "You must upload at least one document",
       StatusCodes.BAD_REQUEST
     );
   }
 
-  /** Upload documents */
+  /** ===============================
+   * Upload documents
+   ===============================*/
   const uploadedDocuments: { url: string; public_id: string }[] = [];
 
-  for (const file of files) {
-    const uploaded = await uploadToCloudinary(file.path, "joinAsSupplier");
+  for (const file of documents) {
+    const uploaded = await uploadToCloudinary(file.path, "supplier-documents");
     uploadedDocuments.push({
       url: uploaded.secure_url,
       public_id: uploaded.public_id,
     });
+  }
+
+  /** ===============================
+   * Upload logo (optional)
+   ===============================*/
+  let logo: { url: string; public_id: string } | null = null;
+
+  if (logoFile) {
+    const uploadedLogo = await uploadToCloudinary(
+      logoFile.path,
+      "supplier-logos"
+    );
+
+    logo = {
+      url: uploadedLogo.secure_url,
+      public_id: uploadedLogo.public_id,
+    };
   }
 
   const session = await mongoose.startSession();
@@ -49,7 +69,6 @@ const joinAsSupplier = async (
     /** ===============================
      * CASE 1️⃣ Logged-in user
      ===============================*/
-
     if (currentUser) {
       const dbUser = await User.findById(currentUser.userId).session(session);
 
@@ -73,17 +92,21 @@ const joinAsSupplier = async (
 
       user = dbUser;
     } else {
-      const isExistingUser = await User.isUserExistByEmail(payload.email);
-      if (isExistingUser) {
+
+    /** ===============================
+     * CASE 2️⃣ Guest user
+     ===============================*/
+      const existingUser = await User.findOne({
+        $or: [{ email: payload.email }, { phone: payload.phone }],
+      }).session(session);
+
+      if (existingUser) {
         throw new AppError(
-          "You already have an account",
+          "Account already exists. Please login to continue.",
           StatusCodes.BAD_REQUEST
         );
       }
 
-      /** ===============================
-     * CASE 2️⃣ Guest user
-     ===============================*/
       const password = Math.floor(100000 + Math.random() * 900000).toString();
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -115,18 +138,24 @@ const joinAsSupplier = async (
       );
     }
 
-    const isAlreadySupplier = await JoinAsSupplier.findOne({
+    /** ===============================
+     * Final safety check
+     ===============================*/
+    const alreadySupplier = await JoinAsSupplier.findOne({
       userId: user._id,
+      status: { $in: ["pending", "approved"] },
     }).session(session);
-    if (isAlreadySupplier && isAlreadySupplier.status !== "pending") {
+
+    if (alreadySupplier) {
       throw new AppError(
-        "You already have a supplier request",
+        "Supplier request already exists",
         StatusCodes.BAD_REQUEST
       );
-    } else if (isAlreadySupplier && isAlreadySupplier.status === "approved") {
-      throw new AppError("You are already a supplier", StatusCodes.BAD_REQUEST);
     }
 
+    /** ===============================
+     * Create supplier request
+     ===============================*/
     const shopSlug = generateShopSlug(payload.shopName);
 
     const supplierRequest = await JoinAsSupplier.create(
@@ -136,6 +165,7 @@ const joinAsSupplier = async (
           userId: user._id,
           shopSlug,
           documentUrl: uploadedDocuments,
+          logo,
           status: "pending",
         },
       ],
@@ -145,7 +175,9 @@ const joinAsSupplier = async (
     await session.commitTransaction();
     await session.endSession();
 
-    /** Send OTP AFTER commit */
+    /** ===============================
+     * Send OTP after commit
+     ===============================*/
     if (tempPassword) {
       await sendEmail({
         to: user.email,

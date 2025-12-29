@@ -9,7 +9,11 @@ const router = Router();
 router.post(
   "/join",
   optionalAuth,
-  upload.array("documents", 5),
+  // upload.array("documents", 5),
+  upload.fields([
+    { name: "documents", maxCount: 5 },
+    { name: "logo", maxCount: 1 },
+  ]),
   joinAsSupplierController.joinAsSupplier
 );
 

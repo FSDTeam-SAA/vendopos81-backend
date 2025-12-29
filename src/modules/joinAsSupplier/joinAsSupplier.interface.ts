@@ -36,8 +36,6 @@
 //   search?: string;
 // }
 
-
-
 import { Types } from "mongoose";
 
 export interface IJoinAsSupplier {
@@ -56,6 +54,10 @@ export interface IJoinAsSupplier {
   location: string;
   street: string;
   postalCode: string;
+  logo: {
+    public_id: string;
+    url: string;
+  };
   documentUrl: {
     public_id: string;
     url: string;

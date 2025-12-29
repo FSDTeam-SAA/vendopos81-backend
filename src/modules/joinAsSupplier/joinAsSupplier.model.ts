@@ -31,6 +31,10 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
     location: { type: String, required: true },
     street: { type: String, required: true },
     postalCode: { type: String, required: true },
+    logo: {
+      public_id: { type: String },
+      url: { type: String },
+    },
     documentUrl: [
       {
         public_id: { type: String },
