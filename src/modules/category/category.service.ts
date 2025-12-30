@@ -1,10 +1,10 @@
 import { StatusCodes } from "http-status-codes";
 import countries from "world-countries";
 import AppError from "../../errors/AppError";
+import { regionMap } from "../../lib/globalType";
 import generateShopSlug from "../../middleware/generateShopSlug";
 import { ICategory } from "./category.interface";
 import category from "./category.model";
-import { regionMap } from "../../lib/globalType";
 
 // const createCategory = async (payload: ICategory) => {
 //   const isExistRegion = await category.findOne({
@@ -40,11 +40,10 @@ import { regionMap } from "../../lib/globalType";
 // };
 
 const createCategory = async (payload: ICategory) => {
-  // Check if region already exists
+  // 1️⃣ Check if region exists
   const isExistRegion = await category.findOne({
     region: { $regex: `^${payload.region}$`, $options: "i" },
   });
-
   if (isExistRegion) {
     throw new AppError(
       `${payload.region} category already exists`,
@@ -52,11 +51,10 @@ const createCategory = async (payload: ICategory) => {
     );
   }
 
-  // Check if productType already exists
+  // 2️⃣ Check if productType exists
   const isExistProductType = await category.findOne({
     productType: { $regex: `^${payload.productType}$`, $options: "i" },
   });
-
   if (isExistProductType) {
     throw new AppError(
       `${payload.productType} category already exists in ${payload.region}`,
@@ -64,25 +62,23 @@ const createCategory = async (payload: ICategory) => {
     );
   }
 
-  // Generate slug
+  // 3️⃣ Generate slug
   const slug = generateShopSlug(payload.region || payload.productType || "");
 
-  // 1️⃣ Normalize input
-  const regionInput = payload.region?.toLowerCase().trim() || "";
+  // Normalize input and ensure mappedRegion is always a string
+  const regionInput = payload.region?.trim().toLowerCase() || "";
+  const mappedRegion: string = regionMap[regionInput] || payload.region || "";
 
-  // 2️⃣ Map to correct region/subregion name
-  const mappedRegion = regionMap[regionInput] || payload.region;
-
-  // 3️⃣ Find countries dynamically
+  // Find countries dynamically (case-insensitive + safe check)
   const countryList = countries
     .filter(
       (c) =>
-        c.subregion === mappedRegion || // check subregion first
-        c.region === mappedRegion // then check region
+        (c.subregion &&
+          c.subregion.toLowerCase() === mappedRegion.toLowerCase()) ||
+        (c.region && c.region.toLowerCase() === mappedRegion.toLowerCase())
     )
     .map((c) => c.name.common);
 
-  // 4️⃣ Create category
   const result = await category.create({
     ...payload,
     slug,
@@ -114,17 +110,36 @@ const getCategories = async (page: number, limit: number) => {
 };
 
 const updateCategory = async (id: string, payload: ICategory) => {
+  // 1️⃣ Find existing category
   const isCategory = await category.findById(id);
   if (!isCategory) {
     throw new AppError("Category not found", StatusCodes.NOT_FOUND);
   }
 
-  if (payload.productName) {
+  // 2️⃣ Generate slug if region or productType updated
+  if (payload.region || payload.productType) {
     payload.slug = generateShopSlug(
       payload.region || payload.productType || ""
     );
   }
 
+  // 3️⃣ Auto-populate country if region updated
+  if (payload.region) {
+    const regionInput = payload.region.toLowerCase().trim();
+    const mappedRegion = regionMap[regionInput] || payload.region;
+
+    const countryList = countries
+      .filter(
+        (c) =>
+          c.subregion === mappedRegion || // subregion first
+          c.region === mappedRegion // then region
+      )
+      .map((c) => c.name.common);
+
+    payload.country = countryList;
+  }
+
+  // 4️⃣ Update category
   const result = await category.findByIdAndUpdate(id, payload, { new: true });
   return result;
 };
