@@ -1,7 +1,10 @@
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
 import generateShopSlug from "../../middleware/generateShopSlug";
-import { uploadToCloudinary } from "../../utils/cloudinary";
+import {
+  deleteFromCloudinary,
+  uploadToCloudinary,
+} from "../../utils/cloudinary";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { User } from "../user/user.model";
 import { IProduct } from "./product.interface";
@@ -142,12 +145,99 @@ const updateProductStatus = async (id: string, status: string) => {
   );
 };
 
+const updateProduct = async (
+  id: string,
+  payload: IProduct,
+  files: Express.Multer.File[],
+  email: string
+) => {
+  // 1️⃣ Find user
+  const user = await User.findOne({ email });
+  if (!user)
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+
+  // 2️⃣ Check product exists
+  const product = await Product.findById(id);
+  if (!product) throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+
+  // 3️⃣ Supplier validation
+  let isSupplierExist = null;
+  if (user.role === "supplier") {
+    isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
+    if (!isSupplierExist)
+      throw new AppError(
+        "You have not applied to be a supplier",
+        StatusCodes.BAD_REQUEST
+      );
+    if (isSupplierExist.status !== "approved")
+      throw new AppError(
+        "Your supplier application is not approved yet",
+        StatusCodes.BAD_REQUEST
+      );
+    if (isSupplierExist.isSuspended)
+      throw new AppError(
+        "Your supplier account has been suspended",
+        StatusCodes.BAD_REQUEST
+      );
+  }
+
+  // 4️⃣ Upload new images if provided
+  const uploadedImages: { url: string; public_id: string }[] = [];
+  if (files && files.length > 0) {
+    for (const img of Array.isArray(product.images) ? product.images : []) {
+      await deleteFromCloudinary(img.public_id);
+    }
+
+    for (const file of files) {
+      const uploaded = await uploadToCloudinary(file.path, "products");
+      uploadedImages.push({
+        url: uploaded.secure_url,
+        public_id: uploaded.public_id,
+      });
+    }
+  }
+
+  const seoData = payload.seo || {
+    metaTitle: payload.title || product.title,
+    metaDescription: payload.shortDescription || product.shortDescription,
+    keywords: [payload.productType, payload.originCountry].filter(Boolean),
+  };
+
+  // 6️⃣ Handle slug
+  const slug = payload.slug || generateShopSlug(payload.title || product.title);
+
+  // 7️⃣ Handle priceFrom from first variant
+  let priceFrom: number | undefined = product.priceFrom;
+  if (payload.variants && payload.variants.length > 0) {
+    priceFrom = payload.variants[0].price;
+  }
+
+  // 8️⃣ Prepare update data
+  const updatedData: Partial<IProduct> = {
+    ...payload,
+    images: (uploadedImages.length > 0
+      ? uploadedImages
+      : product.images) as any,
+    slug,
+    seo: seoData,
+    priceFrom,
+    addBy: user.role === "supplier" ? "supplier" : "admin",
+  };
+
+  // 9️⃣ Update product in DB
+  const result = await Product.findByIdAndUpdate(id, updatedData, {
+    new: true,
+  });
+  return result;
+};
+
 const productService = {
   createProduct,
   getMyAddedProducts,
   getSingleProduct,
   getAllProducts,
   updateProductStatus,
+  updateProduct,
 };
 
 export default productService;

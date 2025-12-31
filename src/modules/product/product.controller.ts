@@ -64,12 +64,28 @@ const updateProductStatus = catchAsync(async (req, res) => {
   });
 });
 
+const updateProduct = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { email } = req.user;
+  const files = req.files as Express.Multer.File[];
+
+  const result = await productService.updateProduct(id, req.body, files, email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Product updated successfully",
+    data: result,
+  });
+});
+
 const productController = {
   createProduct,
   getMyAddedProducts,
   getAllProducts,
   getSingleProduct,
   updateProductStatus,
+  updateProduct,
 };
 
 export default productController;
