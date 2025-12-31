@@ -54,7 +54,7 @@ const getMyDriverInfoFromDB = async (userIdFromToken: string) => {
   if (!result) {
     throw new AppError("Driver profile not found. Please register as a driver.", StatusCodes.NOT_FOUND);
   }
-  return result;
+  return result;  
 };
 
 const updateDriverStatus = async (id: string, status: "approved" | "rejected") => {
