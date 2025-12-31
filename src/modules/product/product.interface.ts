@@ -10,7 +10,7 @@ export interface IProductVariant {
 export interface ISEO {
   metaTitle: string;
   metaDescription: string;
-  keywords: string[];
+  // keywords: string[];
   canonicalUrl?: string;
 }
 

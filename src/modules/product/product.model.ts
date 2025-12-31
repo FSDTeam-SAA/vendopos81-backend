@@ -15,7 +15,7 @@ const SEOSchema = new Schema<ISEO>(
   {
     metaTitle: { type: String, required: true },
     metaDescription: { type: String, required: true },
-    keywords: { type: [String], default: [] },
+    // keywords: { type: [String], default: [] },
     canonicalUrl: { type: String },
   },
   { _id: false }

@@ -56,7 +56,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   const seoData = payload.seo || {
     metaTitle: payload.title,
     metaDescription: payload.shortDescription,
-    keywords: [payload.productType, payload.originCountry],
+    // keywords: [payload.productType, payload.originCountry],
   };
 
   const slug = generateShopSlug(payload.title);
@@ -200,7 +200,7 @@ const updateProduct = async (
   const seoData = payload.seo || {
     metaTitle: payload.title || product.title,
     metaDescription: payload.shortDescription || product.shortDescription,
-    keywords: [payload.productType, payload.originCountry].filter(Boolean),
+    // keywords: [payload.productType, payload.originCountry].filter(Boolean),
   };
 
   // 6️⃣ Handle slug
