@@ -75,8 +75,26 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   return result;
 };
 
+const getMyAddedProducts = async (email: string) => {
+  const user = await User.findOne({ email });
+  if (!user)
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+
+  const result = await Product.find({ userId: user._id })
+    .populate({
+      path: "userId",
+      select: "firstName lastName email",
+    })
+    .populate({
+      path: "categoryId",
+      select: "region",
+    });
+  return result;
+};
+
 const productService = {
   createProduct,
+  getMyAddedProducts,
 };
 
 export default productService;

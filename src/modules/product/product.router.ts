@@ -13,5 +13,11 @@ router.post(
   productController.createProduct
 );
 
+router.get(
+  "/my-added",
+  auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),
+  productController.getMyAddedProducts
+);
+
 const productRouter = router;
 export default productRouter;
