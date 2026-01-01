@@ -13,43 +13,27 @@ const wholesaleCaseItemSchema = new Schema<IWholesaleCaseItem>(
       ref: "Product",
       required: true,
     },
-
-    caseQuantity: {
+    quantity: {
       type: Number,
       required: true,
       min: 1,
     },
-
-    unitsPerCase: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
-
-    baseCasePrice: {
+    price: {
       type: Number,
       required: true,
       min: 0,
     },
-
-    sellingCasePrice: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-
-    discountPercent: {
+    discount: {
       type: Number,
       min: 0,
       max: 100,
     },
-
     isActive: {
       type: Boolean,
       default: true,
     },
   },
-  { _id: false }
+//   { _id: false }
 );
 
 const palletItemSchema = new Schema<IPalletItem>(
@@ -66,7 +50,7 @@ const palletItemSchema = new Schema<IPalletItem>(
       min: 1,
     },
   },
-  { _id: false }
+//   { _id: false }
 );
 
 const wholesalePalletSchema = new Schema<IWholesalePallet>(
@@ -76,40 +60,34 @@ const wholesalePalletSchema = new Schema<IWholesalePallet>(
       required: true,
       trim: true,
     },
-
     items: {
       type: [palletItemSchema],
       required: true,
     },
-
     totalCases: {
       type: Number,
       required: true,
       min: 1,
     },
-
-    palletPrice: {
+    price: {
       type: Number,
       required: true,
       min: 0,
     },
-
     estimatedWeight: {
       type: Number,
       min: 0,
     },
-
     isMixed: {
       type: Boolean,
       required: true,
     },
-
     isActive: {
       type: Boolean,
       default: true,
     },
   },
-  { _id: false }
+//   { _id: false }
 );
 
 const fastMovingItemSchema = new Schema(
@@ -120,7 +98,7 @@ const fastMovingItemSchema = new Schema(
       required: true,
     },
   },
-  { _id: false }
+//   { _id: false }
 );
 
 const wholesaleSchema = new Schema<IWholesale>(
@@ -131,19 +109,24 @@ const wholesaleSchema = new Schema<IWholesale>(
       required: true,
     },
 
+    label: {
+      type: String,
+      required: true,
+    },
+
     caseItems: {
       type: [wholesaleCaseItemSchema],
-      default: null,
+      default: [],
     },
 
     palletItems: {
       type: [wholesalePalletSchema],
-      default: null,
+      default: [],
     },
 
     fastMovingItems: {
       type: [fastMovingItemSchema],
-      default: null,
+      default: [],
     },
 
     isActive: {

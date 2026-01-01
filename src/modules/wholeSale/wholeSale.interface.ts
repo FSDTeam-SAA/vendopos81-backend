@@ -17,11 +17,9 @@ import { Types } from "mongoose";
 
 export interface IWholesaleCaseItem {
   productId: Types.ObjectId;
-  caseQuantity: number;
-  unitsPerCase: number;
-  baseCasePrice: number;
-  sellingCasePrice: number;
-  discountPercent?: number;
+  quantity: number;
+  price: number;
+  discount?: number;
   isActive?: boolean;
 }
 
@@ -34,20 +32,21 @@ export interface IWholesalePallet {
   palletName: string;
   items: IPalletItem[];
   totalCases: number;
-  palletPrice: number;
+  price: number;
   estimatedWeight?: number;
   isMixed: boolean;
   isActive?: boolean;
 }
 
+export interface IFastMovingItem {
+  productId: Types.ObjectId;
+}
+
 export interface IWholesale {
   type: "case" | "pallet" | "fastMoving";
+  label: string;
   caseItems?: IWholesaleCaseItem[];
   palletItems?: IWholesalePallet[];
-  fastMovingItems?: [
-    {
-      productId: Types.ObjectId;
-    }
-  ];
+  fastMovingItems?: IFastMovingItem[];
   isActive?: boolean;
 }
