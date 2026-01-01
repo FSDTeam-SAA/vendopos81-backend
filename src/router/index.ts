@@ -7,6 +7,7 @@ import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.route
 import productRouter from "../modules/product/product.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
+import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
 
 const router = Router();
 
@@ -46,6 +47,10 @@ const moduleRoutes = [
   {
     path: "/category",
     route: categoryRouter,
+  },
+  {
+    path: "/whole-sale",
+    route: wholeSaleRouter,
   },
 ];
 
