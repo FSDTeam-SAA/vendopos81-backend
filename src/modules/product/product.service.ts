@@ -94,11 +94,7 @@ const getMyAddedProducts = async (email: string) => {
 };
 
 const getAllProducts = async () => {
-  const result = await Product.find()
-    // .populate({
-    //   path: "userId",
-    //   select: "firstName lastName email",
-    // })
+  const products = await Product.find()
     .populate({
       path: "categoryId",
       select: "region",
@@ -106,9 +102,85 @@ const getAllProducts = async () => {
     .populate({
       path: "supplierId",
       select: "shopName brandName logo",
-    });
-  return result;
+    })
+    .populate({
+      path: "wholesaleId",
+      match: {
+        type: { $ne: "fastMoving" },
+        isActive: true,
+      },
+    })
+    .lean();
+
+  const formattedProducts = products.map((product: any) => {
+    const productId = product._id.toString();
+
+    const wholesales = (product.wholesaleId || [])
+      .map((wh: any) => {
+        // ✅ CASE
+        if (wh.type === "case") {
+          const caseItems = wh.caseItems.filter(
+            (item: any) => item.productId.toString() === productId
+          );
+
+          if (caseItems.length === 0) return null;
+
+          return {
+            ...wh,
+            caseItems,
+          };
+        }
+
+        // ✅ PALLET
+        if (wh.type === "pallet") {
+          const palletItems = wh.palletItems
+            .map((pallet: any) => {
+              const items = pallet.items.filter(
+                (item: any) => item.productId.toString() === productId
+              );
+
+              if (items.length === 0) return null;
+
+              return {
+                ...pallet,
+                items,
+              };
+            })
+            .filter(Boolean);
+
+          if (palletItems.length === 0) return null;
+
+          return {
+            ...wh,
+            palletItems,
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+    // 🔥 🔥 IMPORTANT PART 🔥 🔥
+    // যদি wholesale থাকে → retail data remove
+    if (wholesales.length > 0) {
+      const { variants, priceFrom, ...restProduct } = product;
+
+      return {
+        ...restProduct,
+        wholesaleId: wholesales,
+      };
+    }
+
+    // যদি wholesale না থাকে → সব data থাকবে
+    return {
+      ...product,
+      wholesaleId: [],
+    };
+  });
+
+  return formattedProducts;
 };
+
 
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);

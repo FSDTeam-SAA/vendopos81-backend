@@ -39,3 +39,27 @@ export interface IGetWholesaleParams {
   page?: number;
   limit?: number;
 }
+
+
+import { Types } from "mongoose";
+
+
+export interface IWholesalePopulated {
+  _id: Types.ObjectId;
+  type: "case" | "pallet";
+  caseItems?: {
+    productId: Types.ObjectId;
+    quantity: number;
+    price: number;
+    discount?: number;
+  }[];
+  palletItems?: {
+    palletName: string;
+    items: {
+      productId: Types.ObjectId;
+      caseQuantity: number;
+    }[];
+    totalCases: number;
+    price: number;
+  }[];
+}
