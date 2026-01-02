@@ -7,5 +7,11 @@ const router = Router();
 
 router.post("/add", auth(USER_ROLE.CUSTOMER), wishlistController.addToWishlist);
 
+router.get(
+  "/my-wishlist",
+  auth(USER_ROLE.CUSTOMER),
+  wishlistController.getMyWishlist
+);
+
 const wishlistRouter = router;
 export default wishlistRouter;

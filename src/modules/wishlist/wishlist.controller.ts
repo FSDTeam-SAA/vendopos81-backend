@@ -16,11 +16,21 @@ const addToWishlist = catchAsync(async (req, res) => {
   });
 });
 
-const getWishlist = catchAsync(async (req, res) => {});
+const getMyWishlist = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const result = await wishlistService.getMyWishlist(email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Wishlist retrieved successfully",
+    data: result,
+  });
+});
 
 const wishlistController = {
   addToWishlist,
-  getWishlist,
+  getMyWishlist,
 };
 
 export default wishlistController;
