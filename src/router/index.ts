@@ -9,6 +9,7 @@ import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
 import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
 import wishlistRouter from "../modules/wishlist/wishlist.router";
+import cartRouter from "../modules/cart/cart.router";
 
 const router = Router();
 
@@ -56,6 +57,10 @@ const moduleRoutes = [
   {
     path: "/wishlist",
     route: wishlistRouter,
+  },
+  {
+    path: "/cart",
+    route: cartRouter,
   },
 ];
 

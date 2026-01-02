@@ -13,13 +13,21 @@ const cartSchema = new Schema<ICart>(
       ref: "Product",
       required: true,
     },
+    variantId: {
+      type: Schema.Types.ObjectId,
+      ref: "Product",
+    },
+    wholesaleId: {
+      type: Schema.Types.ObjectId,
+      ref: "Wholesale",
+    },
     quantity: {
       type: Number,
       required: true,
     },
     price: {
       type: Number,
-      required: true,
+      default: 0,
     },
   },
   { timestamps: true, versionKey: false }
