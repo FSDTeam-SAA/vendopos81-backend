@@ -19,7 +19,6 @@ const addToWishlist = async (email: string, productId: string) => {
   return result;
 };
 
-
 const getMyWishlist = async (email: string) => {
   const user = await User.findOne({ email });
   if (!user) {
@@ -69,7 +68,6 @@ const getMyWishlist = async (email: string) => {
       })
       .filter(Boolean);
 
-    
     if (wholesales.length > 0) {
       const { variants, priceFrom, ...restProduct } = product;
       return {
@@ -84,9 +82,24 @@ const getMyWishlist = async (email: string) => {
   return formattedProducts;
 };
 
+const deletedFromWishlist = async (email: string, id: string) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  const isWishlistExist = await Wishlist.findById(id);
+  if (!isWishlistExist) {
+    throw new AppError("Wishlist not found", StatusCodes.NOT_FOUND);
+  }
+
+  await Wishlist.findByIdAndDelete(id);
+};
+
 const wishlistService = {
   addToWishlist,
   getMyWishlist,
+  deletedFromWishlist,
 };
 
 export default wishlistService;

@@ -28,9 +28,22 @@ const getMyWishlist = catchAsync(async (req, res) => {
   });
 });
 
+const deletedFromWishlist = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const { id } = req.params;
+  await wishlistService.deletedFromWishlist(email, id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Product deleted from wishlist successfully",
+  });
+});
+
 const wishlistController = {
   addToWishlist,
   getMyWishlist,
+  deletedFromWishlist,
 };
 
 export default wishlistController;

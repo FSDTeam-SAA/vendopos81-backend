@@ -13,5 +13,11 @@ router.get(
   wishlistController.getMyWishlist
 );
 
+router.delete(
+  "/delete/:id",
+  auth(USER_ROLE.CUSTOMER),
+  wishlistController.deletedFromWishlist
+);
+
 const wishlistRouter = router;
 export default wishlistRouter;
