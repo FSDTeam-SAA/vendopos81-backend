@@ -61,11 +61,25 @@ const decreaseProductQuantity = catchAsync(async (req, res) => {
   });
 });
 
+const removeProductFromCart = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const { id } = req.params;
+  const result = await cartService.removeProductFromCart(email, id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Product removed from cart successfully",
+    data: result,
+  });
+});
+
 const cartController = {
   addToCart,
   getMyCart,
   increaseProductQuantity,
   decreaseProductQuantity,
+  removeProductFromCart,
 };
 
 export default cartController;

@@ -21,5 +21,11 @@ router.put(
   cartController.decreaseProductQuantity
 );
 
+router.delete(
+  "/remove-product/:id",
+  auth(USER_ROLE.CUSTOMER),
+  cartController.removeProductFromCart
+);
+
 const cartRouter = router;
 export default cartRouter;

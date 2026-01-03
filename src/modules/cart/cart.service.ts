@@ -2,8 +2,8 @@ import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
 import Product from "../product/product.model";
 import { User } from "../user/user.model";
-import Cart from "./cart.model";
 import Wholesale from "../wholeSale/wholeSale.model";
+import Cart from "./cart.model";
 
 interface AddToCartPayload {
   productId: string;
@@ -256,8 +256,7 @@ const increaseProductQuantity = async (
         ? variant.discountPrice
         : variant.price;
   } else if (cart.wholesaleId) {
-
-  /* ======================
+    /* ======================
      ✅ WHOLESALE PRICE
   ====================== */
     const wholesale = (product.wholesaleId as any[]).find(
@@ -318,7 +317,6 @@ const increaseProductQuantity = async (
   return updatedCart;
 };
 
-
 const decreaseProductQuantity = async (
   email: string,
   decreaseBy: number,
@@ -366,8 +364,7 @@ const decreaseProductQuantity = async (
         ? variant.discountPrice
         : variant.price;
   } else if (cart.wholesaleId) {
-
-  /* ======================
+    /* ======================
      ✅ WHOLESALE PRICE
   ====================== */
     const wholesale = await Wholesale.findById(cart.wholesaleId);
@@ -432,13 +429,32 @@ const decreaseProductQuantity = async (
   return updatedCart;
 };
 
+const removeProductFromCart = async (email: string, cartId: string) => {
+  // 1️⃣ Find user
+  const user = await User.findOne({ email });
+  if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
 
+  // 2️⃣ Find cart
+  const cart = await Cart.findById(cartId);
+  if (!cart) throw new AppError("Cart not found", StatusCodes.NOT_FOUND);
+
+  // 🔐 Ownership check
+  if (cart.userId.toString() !== user._id.toString()) {
+    throw new AppError("Unauthorized access", StatusCodes.FORBIDDEN);
+  }
+
+  // 3️⃣ Delete cart item
+  await Cart.findByIdAndDelete(cartId);
+
+  return { message: "Cart item removed successfully" };
+};
 
 const cartService = {
   addToCart,
   getMyCart,
   increaseProductQuantity,
   decreaseProductQuantity,
+  removeProductFromCart,
 };
 
 export default cartService;
