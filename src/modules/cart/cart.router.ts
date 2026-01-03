@@ -7,5 +7,19 @@ const router = Router();
 
 router.post("/add-cart", auth(USER_ROLE.CUSTOMER), cartController.addToCart);
 
+router.get("/my-cart", auth(USER_ROLE.CUSTOMER), cartController.getMyCart);
+
+router.put(
+  "/increase-quantity/:id",
+  auth(USER_ROLE.CUSTOMER),
+  cartController.increaseProductQuantity
+);
+
+router.put(
+  "/decrease-quantity/:id",
+  auth(USER_ROLE.CUSTOMER),
+  cartController.decreaseProductQuantity
+);
+
 const cartRouter = router;
 export default cartRouter;
