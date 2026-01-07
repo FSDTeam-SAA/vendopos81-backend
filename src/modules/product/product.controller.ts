@@ -6,7 +6,6 @@ import productService from "./product.service";
 const createProduct = catchAsync(async (req, res) => {
   const { email } = req.user;
   const files = req.files as Express.Multer.File[];
-
   const result = await productService.createProduct(req.body, files, email);
 
   sendResponse(res, {
