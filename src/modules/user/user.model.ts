@@ -33,15 +33,19 @@ const userSchema = new Schema<IUser>(
     },
     street: {
       type: String,
+      default: "",
     },
     location: {
       type: String,
+      default: "",
     },
     postalCode: {
       type: String,
+      default: "",
     },
     dateOfBirth: {
       type: Date,
+      default: null,
     },
     role: {
       type: String,
@@ -57,6 +61,10 @@ const userSchema = new Schema<IUser>(
       },
     },
     isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isSuspended: {
       type: Boolean,
       default: false,
     },

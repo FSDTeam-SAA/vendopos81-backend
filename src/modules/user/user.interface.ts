@@ -21,6 +21,7 @@ export interface IUser {
     url: string;
   };
   isVerified: boolean;
+  isSuspended: boolean;
   otp?: string | null;
   otpExpires?: Date | null;
   resetPasswordOtp?: string | null;
