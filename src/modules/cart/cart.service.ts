@@ -133,80 +133,150 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
   return cartItem;
 };
 
+//! ------------------------------------------------------------------------
+
 const getMyCart = async (email: string, page = 1, limit = 10) => {
   const user = await User.findOne({ email });
-  if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
+  if (!user) throw new Error("User not found");
 
-  const skip = (page - 1) * limit;
-
-  // ✅ total count
   const total = await Cart.countDocuments({ userId: user._id });
+  const totalPage = Math.ceil(total / limit);
+  const skip = (page - 1) * limit;
 
   const cartItems = await Cart.find({ userId: user._id })
     .skip(skip)
     .limit(limit)
     .populate({
       path: "productId",
-      select: "title slug images priceFrom variants",
+      select: "title slug images  variants",
     })
     .populate({
       path: "wholesaleId",
-      select: "label type",
+      select: "type label caseItems palletItems fastMovingItems isActive",
     })
-    .sort({ createdAt: -1 })
     .lean();
 
-  const formattedCart = cartItems.map((item: any) => {
-    let variant = null;
+  const formattedCart = await Promise.all(
+    cartItems.map(async (item: any) => {
+      let variant = null;
+      let wholesaleData = null;
 
-    // ✅ manual variant resolve
-    if (item.variantId && item.productId?.variants) {
-      variant = item.productId.variants.find(
-        (v: any) => v._id.toString() === item.variantId.toString()
-      );
-    }
+      if (item.variantId && item.productId?.variants) {
+        variant = item.productId.variants.find(
+          (v: any) => v._id.toString() === item.variantId.toString()
+        );
+      }
 
-    return {
-      _id: item._id,
-      userId: item.userId,
+      if (item.wholesaleId) {
+        const wholesale = item.wholesaleId;
+        let wholesaleItem = null;
 
-      productId: {
-        _id: item.productId._id,
-        title: item.productId.title,
-        slug: item.productId.slug,
-        images: item.productId.images,
-        priceFrom: item.productId.priceFrom,
-      },
-
-      variantId: item.variantId || null,
-      variant: variant
-        ? {
-            _id: variant._id,
-            label: variant.label,
-            price: variant.price,
-            discount: variant.discount || 0,
-            unit: variant.unit,
+        if (wholesale.type === "case" && wholesale.caseItems) {
+          wholesaleItem = wholesale.caseItems.find(
+            (caseItem: any) =>
+              caseItem.productId.toString() === item.productId._id.toString()
+          );
+        } else if (wholesale.type === "pallet" && wholesale.palletItems) {
+          for (const pallet of wholesale.palletItems) {
+            const foundItem = pallet.items?.find(
+              (palletItem: any) =>
+                palletItem.productId.toString() ===
+                item.productId._id.toString()
+            );
+            if (foundItem) {
+              wholesaleItem = {
+                ...foundItem,
+                palletName: pallet.palletName,
+                totalCases: pallet.totalCases,
+                estimatedWeight: pallet.estimatedWeight,
+                isMixed: pallet.isMixed,
+              };
+              break;
+            }
           }
-        : null,
+        } else if (
+          wholesale.type === "fastMoving" &&
+          wholesale.fastMovingItems
+        ) {
+          wholesaleItem = wholesale.fastMovingItems.find(
+            (fastItem: any) =>
+              fastItem.productId.toString() === item.productId._id.toString()
+          );
+        }
 
-      wholesaleId: item.wholesaleId || null,
+        // Create filtered wholesale response
+        wholesaleData = {
+          _id: wholesale._id,
+          type: wholesale.type,
+          label: wholesale.label,
+          isActive: wholesale.isActive,
+          // Only include the specific item for this product
+          item: wholesaleItem
+            ? {
+                productId: wholesaleItem.productId,
+                quantity:
+                  wholesaleItem.quantity || wholesaleItem.caseQuantity || 0,
+                price: wholesaleItem.price || 0,
+                discount: wholesaleItem.discount || 0,
+                // Pallet specific fields
+                ...(wholesale.type === "pallet" && {
+                  palletName: wholesaleItem.palletName,
+                  totalCases: wholesaleItem.totalCases,
+                  estimatedWeight: wholesaleItem.estimatedWeight,
+                  isMixed: wholesaleItem.isMixed,
+                }),
+              }
+            : null,
+        };
 
-      quantity: item.quantity,
-      price: item.price,
+        // ✅ Calculate the actual price per unit with discount for wholesale
+        if (wholesaleItem) {
+          const discountedPrice =
+            wholesaleItem.price * (1 - (wholesaleItem.discount || 0) / 100);
+          // Update the cart price if it's different
+          if (item.price !== discountedPrice) {
+            // Optional: Update cart price if needed
+            await Cart.updateOne({ _id: item._id }, { price: discountedPrice });
+          }
+        }
+      }
 
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    };
-  });
+      return {
+        _id: item._id,
+        userId: item.userId,
+        product: {
+          _id: item.productId._id,
+          title: item.productId.title,
+          slug: item.productId.slug,
+          images: item.productId.images,
+          priceFrom: item.productId.priceFrom,
+        },
+        variant: variant
+          ? {
+              _id: variant._id,
+              label: variant.label,
+              price: variant.price,
+              discount: variant.discount || 0,
+              unit: variant.unit,
+            }
+          : null,
+        wholesale: wholesaleData,
+        quantity: item.quantity,
+        price: item.price,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      };
+    })
+  );
 
   return {
+    data: formattedCart,
     meta: {
       page,
       limit,
       total,
-      totalPage: Math.ceil(total / limit),
+      totalPage,
     },
-    data: formattedCart,
   };
 };
 
