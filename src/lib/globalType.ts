@@ -63,3 +63,13 @@ export interface IWholesalePopulated {
     price: number;
   }[];
 }
+
+
+export type OrderItemInput = {
+  productId: Types.ObjectId;
+  supplierId: Types.ObjectId;
+  quantity: number;
+  unitPrice: number;
+  variantId?: Types.ObjectId;
+  wholesaleId?: Types.ObjectId;
+};
