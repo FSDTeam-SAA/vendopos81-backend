@@ -37,13 +37,12 @@ const increaseProductQuantity = catchAsync(async (req, res) => {
   const { email } = req.user;
   const { id } = req.params;
   const { quantity } = req.body;
-  const result = await cartService.increaseProductQuantity(email, quantity, id);
+  await cartService.increaseProductQuantity(email, quantity, id);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Product quantity increased successfully",
-    data: result,
   });
 });
 
@@ -51,26 +50,24 @@ const decreaseProductQuantity = catchAsync(async (req, res) => {
   const { email } = req.user;
   const { id } = req.params;
   const { quantity } = req.body;
-  const result = await cartService.decreaseProductQuantity(email, quantity, id);
+  await cartService.decreaseProductQuantity(email, quantity, id);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Product quantity decreased successfully",
-    data: result,
   });
 });
 
 const removeProductFromCart = catchAsync(async (req, res) => {
   const { email } = req.user;
   const { id } = req.params;
-  const result = await cartService.removeProductFromCart(email, id);
+  await cartService.removeProductFromCart(email, id);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Product removed from cart successfully",
-    data: result,
   });
 });
 
