@@ -133,7 +133,6 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
   return cartItem;
 };
 
-
 const getMyCart = async (email: string, page = 1, limit = 10) => {
   const user = await User.findOne({ email });
   if (!user) throw new Error("User not found");
@@ -374,7 +373,7 @@ const increaseProductQuantity = async (
   const newQuantity = cart.quantity + increaseBy;
   const newPrice = unitPrice * newQuantity;
 
-  const updatedCart = await Cart.findByIdAndUpdate(
+  await Cart.findByIdAndUpdate(
     cartId,
     {
       $inc: { quantity: increaseBy },
@@ -382,8 +381,6 @@ const increaseProductQuantity = async (
     },
     { new: true }
   );
-
-  return updatedCart;
 };
 
 const decreaseProductQuantity = async (
@@ -484,7 +481,7 @@ const decreaseProductQuantity = async (
   /* ======================
      ✅ UPDATE CART
   ====================== */
-  const updatedCart = await Cart.findByIdAndUpdate(
+  await Cart.findByIdAndUpdate(
     cartId,
     {
       $set: {
@@ -494,8 +491,6 @@ const decreaseProductQuantity = async (
     },
     { new: true }
   );
-
-  return updatedCart;
 };
 
 const removeProductFromCart = async (email: string, cartId: string) => {
@@ -514,8 +509,6 @@ const removeProductFromCart = async (email: string, cartId: string) => {
 
   // 3️⃣ Delete cart item
   await Cart.findByIdAndDelete(cartId);
-
-  return { message: "Cart item removed successfully" };
 };
 
 const cartService = {
