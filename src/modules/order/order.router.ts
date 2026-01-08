@@ -8,5 +8,11 @@ const router = Router();
 router.post("/create", auth(USER_ROLE.CUSTOMER), orderController.createOrder);
 router.get("/my-orders", auth(USER_ROLE.CUSTOMER), orderController.getMyOrders);
 
+router.get(
+  "/all-orders",
+//   auth(USER_ROLE.ADMIN),
+  orderController.getAllOrdersForAdmin
+);
+
 const orderRouter = router;
 export default orderRouter;
