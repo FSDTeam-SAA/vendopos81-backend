@@ -10,8 +10,14 @@ router.get("/my-orders", auth(USER_ROLE.CUSTOMER), orderController.getMyOrders);
 
 router.get(
   "/all-orders",
-//   auth(USER_ROLE.ADMIN),
+  //   auth(USER_ROLE.ADMIN),
   orderController.getAllOrdersForAdmin
+);
+
+router.get(
+  "/supplier-orders",
+  auth(USER_ROLE.SUPPLIER),
+  orderController.getOrderFormSupplier
 );
 
 const orderRouter = router;

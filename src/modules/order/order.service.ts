@@ -317,7 +317,67 @@ const getOrderFormSupplier = async (email: string) => {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
 
+  // 2️⃣ supplier check
   const supplier = await JoinAsSupplier.findOne({ userId: user._id });
+  if (!supplier) {
+    throw new AppError(
+      "You are not registered as a supplier",
+      StatusCodes.FORBIDDEN
+    );
+  }
+
+  // 3️⃣ find orders
+  const orders = await Order.find({
+    "items.supplierId": supplier._id,
+  })
+    .populate("userId", "firstName lastName email")
+    .populate("items.productId", "title slug images")
+    .populate("items.supplierId", "shopName brandName logo")
+    .populate("items.variantId", "label price discount unit")
+    .populate("items.wholesaleId", "type label")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // 4️⃣ format response
+  const formattedOrders = orders.map((order) => ({
+    _id: order._id,
+    user: order.userId,
+    orderType: order.orderType,
+    paymentType: order.paymentType,
+    paymentStatus: order.paymentStatus,
+    orderStatus: order.orderStatus,
+    totalPrice: order.totalPrice,
+    billingInfo: order.billingInfo,
+    purchaseDate: order.purchaseDate,
+
+    items: order.items
+      .filter(
+        (item) =>
+          item.supplierId &&
+          item.supplierId._id.toString() === supplier._id.toString()
+      )
+      .map((item) => {
+        const wholesale =
+          item.wholesaleId && typeof item.wholesaleId === "object"
+            ? {
+                _id: (item.wholesaleId as any)._id,
+                type: (item.wholesaleId as any).type,
+                label: (item.wholesaleId as any).label,
+              }
+            : null;
+
+        return {
+          product: item.productId,
+          supplier: item.supplierId,
+          variant: item.variantId || null,
+          wholesale,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        };
+      }),
+  }));
+
+  return formattedOrders;
 };
 
 const orderService = {
