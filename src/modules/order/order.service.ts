@@ -176,9 +176,120 @@ const getMyOrders = async (email: string) => {
   return formattedOrders;
 };
 
+const getAllOrdersForAdmin = async () => {
+  const orders = await Order.find()
+    .populate({
+      path: "userId",
+      select: "firstName lastName email",
+    })
+    .populate({
+      path: "items.productId",
+      select: "title slug images variants",
+    })
+    .populate({
+      path: "items.wholesaleId",
+      select: "type label caseItems palletItems fastMovingItems",
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const formattedOrders = orders.map((order) => ({
+    _id: order._id,
+    userId: order.userId,
+    orderType: order.orderType,
+    paymentType: order.paymentType,
+    paymentStatus: order.paymentStatus,
+    orderStatus: order.orderStatus,
+    totalPrice: order.totalPrice,
+    billingInfo: order.billingInfo,
+    purchaseDate: order.purchaseDate,
+
+    items: order.items.map((item: any) => {
+      // ======================
+      // 🟢 PRODUCT (MINIMAL)
+      // ======================
+      const product = item.productId
+        ? {
+            _id: item.productId._id,
+            title: item.productId.title,
+            slug: item.productId.slug,
+            images: item.productId.images,
+          }
+        : null;
+
+      // ======================
+      // 🟢 VARIANT (ONLY IF EXISTS)
+      // ======================
+      let variant = null;
+      if (item.variantId && item.productId?.variants) {
+        const v = item.productId.variants.find(
+          (x: any) => x._id.toString() === item.variantId.toString()
+        );
+
+        if (v) {
+          variant = {
+            _id: v._id,
+            label: v.label,
+            price: v.price,
+            discount: v.discount || 0,
+            unit: v.unit,
+          };
+        }
+      }
+
+      // ======================
+      // 🟢 WHOLESALE (ONLY SELECTED ITEM)
+      // ======================
+      let wholesale = null;
+      if (item.wholesaleId) {
+        const w = item.wholesaleId;
+        let selectedItem = null;
+
+        if (w.type === "case") {
+          selectedItem = w.caseItems?.find(
+            (ci: any) =>
+              ci.productId.toString() === item.productId._id.toString()
+          );
+        }
+
+        if (w.type === "pallet") {
+          selectedItem = w.palletItems?.[0];
+        }
+
+        wholesale = {
+          _id: w._id,
+          type: w.type,
+          label: w.label,
+          item: selectedItem
+            ? {
+                quantity: selectedItem.quantity,
+                price: selectedItem.price,
+                discount: selectedItem.discount || 0,
+              }
+            : null,
+        };
+      }
+
+      return {
+        product,
+        variant,
+        wholesale,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      };
+    }),
+  }));
+
+  return formattedOrders;
+};
+
+const getOrderFormSupplier = async (email: string) => {};
+
 const orderService = {
   createOrder,
   getMyOrders,
+  getAllOrdersForAdmin,
+  getOrderFormSupplier,
 };
 
 export default orderService;
