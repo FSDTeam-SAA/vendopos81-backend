@@ -15,8 +15,21 @@ const createOrder = catchAsync(async (req, res) => {
   });
 });
 
+const getMyOrders = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const result = await orderService.getMyOrders(email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Orders retrieved successfully",
+    data: result,
+  });
+});
+
 const orderController = {
   createOrder,
+  getMyOrders,
 };
 
 export default orderController;
