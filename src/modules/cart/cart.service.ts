@@ -13,13 +13,13 @@ interface AddToCartPayload {
 }
 
 const addToCart = async (email: string, payload: AddToCartPayload) => {
-  // 1️⃣ Find user
+  // 1️⃣ User
   const user = await User.findOne({ email });
   if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
 
-  // 2️⃣ Find product and populate wholesale
-  const product = await Product.findById(payload.productId)
-    .populate("wholesaleId") // <-- populate to get full wholesale objects
+  // 2️⃣ Product
+  const product: any = await Product.findById(payload.productId)
+    .populate("wholesaleId")
     .lean();
 
   if (!product) throw new AppError("Product not found", StatusCodes.NOT_FOUND);
@@ -31,50 +31,55 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
   let variantLabel = "";
   let wholesaleLabel = "";
 
-  // 3️⃣ If variant selected
+  /**
+   * ================= VARIANT =================
+   */
   if (payload.variantId) {
-    const variant = product.variants.find(
-      (v: any) => v._id.toString() === payload.variantId
+    const variant = product.variants?.find(
+      (v: any) => v._id.toString() === payload.variantId!.toString()
     );
+
     if (!variant)
       throw new AppError("Variant not found", StatusCodes.NOT_FOUND);
 
-    unitPrice = variant.discountPrice || variant.price;
-    originalPrice = variant.price;
-    discount = variant.discount || 0;
+    unitPrice = Number(variant.discountPrice ?? variant.price);
+    originalPrice = Number(variant.price);
+    discount = Number(variant.discount || 0);
     unit = variant.unit;
     variantLabel = variant.label;
-  }
+  } else if (payload.wholesaleId) {
 
-  // 4️⃣ If wholesale selected
-  else if (payload.wholesaleId) {
-    const wholesale = (product.wholesaleId as any[]).find(
-      (w) => w._id.toString() === payload.wholesaleId
+  /**
+   * ================= WHOLESALE =================
+   */
+    const wholesale = product.wholesaleId?.find(
+      (w: any) => w._id.toString() === payload.wholesaleId!.toString()
     );
 
     if (!wholesale)
       throw new AppError("Wholesale not found", StatusCodes.NOT_FOUND);
 
-    // CASE type
+    wholesaleLabel = wholesale.label;
+
+    // CASE
     if (wholesale.type === "case") {
-      const caseItem = wholesale.caseItems.find(
-        (item: any) => item.productId.toString() === product._id.toString()
+      const caseItem = wholesale.caseItems?.find(
+        (i: any) => i.productId.toString() === product._id.toString()
       );
+
       if (!caseItem)
         throw new AppError("Case item not found", StatusCodes.NOT_FOUND);
 
-      unitPrice =
-        caseItem.price - (caseItem.price * (caseItem.discount || 0)) / 100;
-      originalPrice = caseItem.price;
-      discount = caseItem.discount || 0;
+      originalPrice = Number(caseItem.price);
+      discount = Number(caseItem.discount || 0);
+      unitPrice = Number((originalPrice * (1 - discount / 100)).toFixed(2));
       unit = "case";
-      wholesaleLabel = wholesale.label;
     }
 
-    // PALLET type
+    // PALLET
     else if (wholesale.type === "pallet") {
-      const pallet = wholesale.palletItems.find((p: any) =>
-        p.items.some(
+      const pallet = wholesale.palletItems?.find((p: any) =>
+        p.items?.some(
           (i: any) => i.productId.toString() === product._id.toString()
         )
       );
@@ -82,45 +87,53 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
       if (!pallet)
         throw new AppError("Pallet item not found", StatusCodes.NOT_FOUND);
 
-      // ✅ FIXED LOGIC
-      unitPrice = pallet.price; // 🔥 FULL PALLET PRICE
-      originalPrice = pallet.price;
+      originalPrice = Number(pallet.price);
+      unitPrice = Number(pallet.price);
       discount = 0;
       unit = "pallet";
-      wholesaleLabel = wholesale.label;
     }
   } else {
-    // No variant / wholesale → retail price
-    unitPrice = product.priceFrom || 0;
+
+  /**
+   * ================= RETAIL =================
+   */
+    unitPrice = Number(product.priceFrom || 0);
     originalPrice = unitPrice;
     discount = 0;
     unit = "unit";
   }
 
-  // 5️⃣ Total price
-  const totalPrice = unitPrice * payload.quantity;
+  if (!Number.isFinite(unitPrice) || unitPrice <= 0)
+    throw new AppError("Invalid price calculated", StatusCodes.BAD_REQUEST);
 
-  // 6️⃣ Check existing cart
+  // 5️⃣ Total
+  const totalPrice = Number((unitPrice * payload.quantity).toFixed(2));
+
+  /**
+   * ================= EXISTING CART =================
+   */
   const existingCart = await Cart.findOne({
     userId: user._id,
     productId: product._id,
-    variantId: payload.variantId || null,
-    wholesaleId: payload.wholesaleId || null,
+    ...(payload.variantId && { variantId: payload.variantId }),
+    ...(payload.wholesaleId && { wholesaleId: payload.wholesaleId }),
   });
 
   if (existingCart) {
     existingCart.quantity += payload.quantity;
-    existingCart.price = existingCart.quantity * unitPrice;
+    existingCart.price = Number((existingCart.quantity * unitPrice).toFixed(2));
     await existingCart.save();
     return existingCart;
   }
 
-  // 7️⃣ Create cart item
+  /**
+   * ================= CREATE =================
+   */
   const cartItem = await Cart.create({
     userId: user._id,
     productId: product._id,
-    variantId: payload.variantId || undefined,
-    wholesaleId: payload.wholesaleId || undefined,
+    ...(payload.variantId && { variantId: payload.variantId }),
+    ...(payload.wholesaleId && { wholesaleId: payload.wholesaleId }),
     quantity: payload.quantity,
     price: totalPrice,
     originalPrice,
@@ -133,8 +146,9 @@ const addToCart = async (email: string, payload: AddToCartPayload) => {
   return cartItem;
 };
 
+
 const getMyCart = async (email: string, page = 1, limit = 10) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).lean();
   if (!user) throw new Error("User not found");
 
   const total = await Cart.countDocuments({ userId: user._id });
@@ -146,44 +160,55 @@ const getMyCart = async (email: string, page = 1, limit = 10) => {
     .limit(limit)
     .populate({
       path: "productId",
-      select: "title slug images  variants",
+      select: "title slug images priceFrom variants",
     })
     .populate({
       path: "wholesaleId",
-      select: "type label caseItems palletItems fastMovingItems isActive",
+      select: `
+        type label isActive
+        caseItems
+        palletItems
+        fastMovingItems
+      `,
     })
     .lean();
 
-  const formattedCart = await Promise.all(
-    cartItems.map(async (item: any) => {
-      let variant = null;
-      let wholesaleData = null;
+  const formattedCart = cartItems
+    .map((item: any) => {
+      if (!item.productId) return null;
 
-      if (item.variantId && item.productId?.variants) {
+      /** ---------------- VARIANT ---------------- */
+      let variant = null;
+      if (item.variantId && Array.isArray(item.productId.variants)) {
         variant = item.productId.variants.find(
-          (v: any) => v._id.toString() === item.variantId.toString()
+          (v: any) => String(v._id) === String(item.variantId)
         );
       }
 
+      /** ---------------- WHOLESALE ---------------- */
+      let wholesaleData = null;
+
       if (item.wholesaleId) {
         const wholesale = item.wholesaleId;
-        let wholesaleItem = null;
+        let wholesaleItem: any = null;
 
-        if (wholesale.type === "case" && wholesale.caseItems) {
+        if (wholesale.type === "case" && Array.isArray(wholesale.caseItems)) {
           wholesaleItem = wholesale.caseItems.find(
-            (caseItem: any) =>
-              caseItem.productId.toString() === item.productId._id.toString()
+            (ci: any) => String(ci.productId) === String(item.productId._id)
           );
-        } else if (wholesale.type === "pallet" && wholesale.palletItems) {
+        }
+
+        if (
+          wholesale.type === "pallet" &&
+          Array.isArray(wholesale.palletItems)
+        ) {
           for (const pallet of wholesale.palletItems) {
-            const foundItem = pallet.items?.find(
-              (palletItem: any) =>
-                palletItem.productId.toString() ===
-                item.productId._id.toString()
+            const found = pallet.items?.find(
+              (pi: any) => String(pi.productId) === String(item.productId._id)
             );
-            if (foundItem) {
+            if (found) {
               wholesaleItem = {
-                ...foundItem,
+                ...found,
                 palletName: pallet.palletName,
                 totalCases: pallet.totalCases,
                 estimatedWeight: pallet.estimatedWeight,
@@ -192,31 +217,29 @@ const getMyCart = async (email: string, page = 1, limit = 10) => {
               break;
             }
           }
-        } else if (
+        }
+
+        if (
           wholesale.type === "fastMoving" &&
-          wholesale.fastMovingItems
+          Array.isArray(wholesale.fastMovingItems)
         ) {
           wholesaleItem = wholesale.fastMovingItems.find(
-            (fastItem: any) =>
-              fastItem.productId.toString() === item.productId._id.toString()
+            (fi: any) => String(fi.productId) === String(item.productId._id)
           );
         }
 
-        // Create filtered wholesale response
         wholesaleData = {
           _id: wholesale._id,
           type: wholesale.type,
           label: wholesale.label,
           isActive: wholesale.isActive,
-          // Only include the specific item for this product
           item: wholesaleItem
             ? {
                 productId: wholesaleItem.productId,
                 quantity:
-                  wholesaleItem.quantity || wholesaleItem.caseQuantity || 0,
-                price: wholesaleItem.price || 0,
-                discount: wholesaleItem.discount || 0,
-                // Pallet specific fields
+                  wholesaleItem.quantity ?? wholesaleItem.caseQuantity ?? 0,
+                price: wholesaleItem.price ?? 0,
+                discount: wholesaleItem.discount ?? 0,
                 ...(wholesale.type === "pallet" && {
                   palletName: wholesaleItem.palletName,
                   totalCases: wholesaleItem.totalCases,
@@ -226,19 +249,9 @@ const getMyCart = async (email: string, page = 1, limit = 10) => {
               }
             : null,
         };
-
-        // ✅ Calculate the actual price per unit with discount for wholesale
-        if (wholesaleItem) {
-          const discountedPrice =
-            wholesaleItem.price * (1 - (wholesaleItem.discount || 0) / 100);
-          // Update the cart price if it's different
-          if (item.price !== discountedPrice) {
-            // Optional: Update cart price if needed
-            await Cart.updateOne({ _id: item._id }, { price: discountedPrice });
-          }
-        }
       }
 
+      /** ---------------- FINAL RESPONSE ---------------- */
       return {
         _id: item._id,
         userId: item.userId,
@@ -247,25 +260,25 @@ const getMyCart = async (email: string, page = 1, limit = 10) => {
           title: item.productId.title,
           slug: item.productId.slug,
           images: item.productId.images,
-          priceFrom: item.productId.priceFrom,
+          priceFrom: item.productId.priceFrom ?? 0,
         },
         variant: variant
           ? {
               _id: variant._id,
               label: variant.label,
               price: variant.price,
-              discount: variant.discount || 0,
+              discount: variant.discount ?? 0,
               unit: variant.unit,
             }
           : null,
         wholesale: wholesaleData,
         quantity: item.quantity,
-        price: item.price,
+        price: Number((item.price ?? 0).toFixed(2)),
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       };
     })
-  );
+    .filter(Boolean); // remove nulls
 
   return {
     data: formattedCart,
@@ -277,6 +290,7 @@ const getMyCart = async (email: string, page = 1, limit = 10) => {
     },
   };
 };
+
 
 const increaseProductQuantity = async (
   email: string,

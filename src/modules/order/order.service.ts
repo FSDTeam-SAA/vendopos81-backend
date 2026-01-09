@@ -54,7 +54,7 @@ const createOrder = async (payload: any, email: string) => {
     if (payload.orderType === "single") {
       for (const item of payload.items) {
         const product = await Product.findById(item.productId)
-          .populate("supplierId")
+          // .populate("supplierId")
           .populate("wholesaleId")
           .session(session);
 
@@ -126,10 +126,10 @@ const createOrder = async (payload: any, email: string) => {
       { session }
     );
 
-    // Clear cart if needed
-    if (payload.orderType === "addToCart") {
-      await Cart.deleteMany({ userId: user._id }).session(session);
-    }
+    // !Clear cart if needed____________________________
+    // if (payload.orderType === "addToCart") {
+    //   await Cart.deleteMany({ userId: user._id }).session(session);
+    // }
 
     await session.commitTransaction();
     session.endSession();
