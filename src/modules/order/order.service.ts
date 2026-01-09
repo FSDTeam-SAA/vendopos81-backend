@@ -1,138 +1,162 @@
 import { StatusCodes } from "http-status-codes";
+import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
 import { OrderItemInput } from "../../lib/globalType";
 import Cart from "../cart/cart.model";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
+import Product from "../product/product.model";
 import { User } from "../user/user.model";
 import { IOrder } from "./order.interface";
 import Order from "./order.model";
-import Product from "../product/product.model";
 
 const createOrder = async (payload: IOrder, email: string) => {
-  const user = await User.findOne({ email });
-  if (!user) {
-    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
-  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  let items: OrderItemInput[] = [];
-  let totalPrice = 0;
-
-  // 🛒 ORDER FROM CART (unchanged – already correct)
-  if (payload.orderType === "addToCart") {
-    const cartItems = await Cart.find({ userId: user._id })
-      .populate({ path: "productId", select: "supplierId" })
-      .lean();
-
-    if (!cartItems.length) {
-      throw new AppError("Cart is empty", StatusCodes.BAD_REQUEST);
+  try {
+    const user = await User.findOne({ email }).session(session);
+    if (!user) {
+      throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
     }
 
-    items = cartItems.map((item: any) => ({
-      productId: item.productId._id,
-      supplierId: item.productId.supplierId,
-      quantity: item.quantity,
-      unitPrice: item.price,
-      ...(item.variantId && { variantId: item.variantId }),
-      ...(item.wholesaleId && { wholesaleId: item.wholesaleId }),
-    }));
+    let items: OrderItemInput[] = [];
+    let totalPrice = 0;
 
-    totalPrice = cartItems.reduce(
-      (sum: number, item: any) => sum + item.price,
-      0
-    );
-  }
-
-  // ⚡ SINGLE ORDER (FIXED LOGIC)
-  if (payload.orderType === "single") {
-    for (const item of payload.items) {
-      const product = await Product.findById(item.productId)
-        .populate("supplierId", "_id")
-        .populate("wholesaleId")
+    // 🛒 ORDER FROM CART
+    if (payload.orderType === "addToCart") {
+      const cartItems = await Cart.find({ userId: user._id })
+        .populate({ path: "productId", select: "supplierId" })
+        .session(session)
         .lean();
 
-      if (!product) {
-        throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+      if (!cartItems.length) {
+        throw new AppError("Cart is empty", StatusCodes.BAD_REQUEST);
       }
 
-      let unitPrice = 0;
+      items = cartItems.map((item: any) => ({
+        productId: item.productId._id,
+        supplierId: item.productId.supplierId,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        ...(item.variantId && { variantId: item.variantId }),
+        ...(item.wholesaleId && { wholesaleId: item.wholesaleId }),
+      }));
 
-      // ✅ Variant price
-      if (item.variantId) {
-        const variant = product.variants?.find(
-          (v: any) => v._id.toString() === item.variantId!.toString()
-        );
+      totalPrice = cartItems.reduce(
+        (sum: number, item: any) => sum + item.price * item.quantity,
+        0
+      );
 
-        if (!variant) {
-          throw new AppError("Invalid variant", StatusCodes.BAD_REQUEST);
+
+    }
+
+    // ⚡ SINGLE ORDER
+    if (payload.orderType === "single") {
+      for (const item of payload.items) {
+        const product: any = await Product.findById(item.productId)
+          .populate("supplierId", "_id")
+          .populate("wholesaleId")
+          .session(session)
+          .lean();
+
+        if (!product) {
+          throw new AppError("Product not found", StatusCodes.NOT_FOUND);
         }
 
-        unitPrice = variant.price;
-      }
+        let unitPrice = 0;
 
-      // ✅ Wholesale price
-      if (item.wholesaleId) {
-        const wholesale: any = product.wholesaleId?.find(
-          (w: any) => w._id.toString() === item.wholesaleId!.toString()
-        );
+        // ✅ Variant price
+        if (item.variantId) {
+          const variant = product.variants?.find(
+            (v: any) => v._id.toString() === item.variantId!.toString()
+          );
 
-        if (!wholesale) {
+          if (!variant) {
+            throw new AppError("Invalid variant", StatusCodes.BAD_REQUEST);
+          }
+
+          unitPrice = variant.price;
+        }
+
+        // ✅ Wholesale price
+        if (item.wholesaleId) {
+          const wholesale = product.wholesaleId?.find(
+            (w: any) => w._id.toString() === item.wholesaleId!.toString()
+          );
+
+          if (!wholesale) {
+            throw new AppError(
+              "Invalid wholesale offer",
+              StatusCodes.BAD_REQUEST
+            );
+          }
+
+          if (wholesale.type === "case") {
+            const caseItem = wholesale.caseItems.find(
+              (c: any) => c.productId.toString() === product._id.toString()
+            );
+
+            if (!caseItem) {
+              throw new AppError("Invalid case item", StatusCodes.BAD_REQUEST);
+            }
+
+            unitPrice = caseItem.price;
+          }
+
+          if (wholesale.type === "pallet") {
+            unitPrice = wholesale.palletItems[0].price;
+          }
+        }
+
+        if (!unitPrice) {
           throw new AppError(
-            "Invalid wholesale offer",
+            "Unable to calculate price",
             StatusCodes.BAD_REQUEST
           );
         }
 
-        // CASE wholesale
-        if (wholesale.type === "case") {
-          const caseItem = wholesale.caseItems.find(
-            (c: any) => c.productId.toString() === product._id.toString()
-          );
+        const lineTotal = unitPrice * item.quantity;
+        totalPrice += lineTotal;
 
-          if (!caseItem) {
-            throw new AppError("Invalid case item", StatusCodes.BAD_REQUEST);
-          }
-
-          unitPrice = caseItem.price;
-        }
-
-        // PALLET wholesale
-        if (wholesale.type === "pallet") {
-          const pallet = wholesale.palletItems[0];
-          unitPrice = pallet.price;
-        }
+        items.push({
+          productId: product._id,
+          supplierId: product.supplierId,
+          quantity: item.quantity,
+          unitPrice,
+          ...(item.variantId && { variantId: item.variantId }),
+          ...(item.wholesaleId && { wholesaleId: item.wholesaleId }),
+        });
       }
-
-      if (!unitPrice) {
-        throw new AppError(
-          "Unable to calculate price",
-          StatusCodes.BAD_REQUEST
-        );
-      }
-
-      const lineTotal = unitPrice * item.quantity;
-      totalPrice += lineTotal;
-
-      items.push({
-        productId: product._id,
-        supplierId: product.supplierId!,
-        quantity: item.quantity,
-        unitPrice,
-        ...(item.variantId && { variantId: item.variantId }),
-        ...(item.wholesaleId && { wholesaleId: item.wholesaleId }),
-      });
     }
+
+    const order = await Order.create(
+      [
+        {
+          userId: user._id,
+          orderType: payload.orderType,
+          paymentType: payload.paymentType,
+          items,
+          totalPrice,
+          billingInfo: payload.billingInfo,
+        },
+      ],
+      { session }
+    );
+
+    //! ✅ OPTIONAL: clear cart after order
+    // if (payload.orderType === "addToCart") {
+    //   await Cart.deleteMany({ userId: user._id }).session(session);
+    // }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return order[0];
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-
-  const order = await Order.create({
-    userId: user._id,
-    orderType: payload.orderType,
-    paymentType: payload.paymentType,
-    items,
-    totalPrice,
-    billingInfo: payload.billingInfo,
-  });
-
-  return order;
 };
 
 //!-----------------------------------------------------

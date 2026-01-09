@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 
 export interface IOrder {
+  orderUniqueId?: string;
   userId: Types.ObjectId;
   orderType: "single" | "addToCart";
   paymentType: "online" | "cod";
