@@ -6,6 +6,7 @@ import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { User } from "../user/user.model";
 import { IOrder } from "./order.interface";
 import Order from "./order.model";
+import Product from "../product/product.model";
 
 const createOrder = async (payload: IOrder, email: string) => {
   const user = await User.findOne({ email });
@@ -16,13 +17,10 @@ const createOrder = async (payload: IOrder, email: string) => {
   let items: OrderItemInput[] = [];
   let totalPrice = 0;
 
-  // ORDER FROM CART
+  // 🛒 ORDER FROM CART (unchanged – already correct)
   if (payload.orderType === "addToCart") {
     const cartItems = await Cart.find({ userId: user._id })
-      .populate({
-        path: "productId",
-        select: "supplierId",
-      })
+      .populate({ path: "productId", select: "supplierId" })
       .lean();
 
     if (!cartItems.length) {
@@ -42,20 +40,87 @@ const createOrder = async (payload: IOrder, email: string) => {
       (sum: number, item: any) => sum + item.price,
       0
     );
-
-    //! ✅ Clear cart after order
-    // await Cart.deleteMany({ userId: user._id });
   }
 
-  // SINGLE / DIRECT ORDER
+  // ⚡ SINGLE ORDER (FIXED LOGIC)
   if (payload.orderType === "single") {
-    items = payload.items || [];
+    for (const item of payload.items) {
+      const product = await Product.findById(item.productId)
+        .populate("supplierId", "_id")
+        .populate("wholesaleId")
+        .lean();
 
-    totalPrice = items.reduce(
-      (sum, item) =>
-        sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0),
-      0
-    );
+      if (!product) {
+        throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+      }
+
+      let unitPrice = 0;
+
+      // ✅ Variant price
+      if (item.variantId) {
+        const variant = product.variants?.find(
+          (v: any) => v._id.toString() === item.variantId!.toString()
+        );
+
+        if (!variant) {
+          throw new AppError("Invalid variant", StatusCodes.BAD_REQUEST);
+        }
+
+        unitPrice = variant.price;
+      }
+
+      // ✅ Wholesale price
+      if (item.wholesaleId) {
+        const wholesale: any = product.wholesaleId?.find(
+          (w: any) => w._id.toString() === item.wholesaleId!.toString()
+        );
+
+        if (!wholesale) {
+          throw new AppError(
+            "Invalid wholesale offer",
+            StatusCodes.BAD_REQUEST
+          );
+        }
+
+        // CASE wholesale
+        if (wholesale.type === "case") {
+          const caseItem = wholesale.caseItems.find(
+            (c: any) => c.productId.toString() === product._id.toString()
+          );
+
+          if (!caseItem) {
+            throw new AppError("Invalid case item", StatusCodes.BAD_REQUEST);
+          }
+
+          unitPrice = caseItem.price;
+        }
+
+        // PALLET wholesale
+        if (wholesale.type === "pallet") {
+          const pallet = wholesale.palletItems[0];
+          unitPrice = pallet.price;
+        }
+      }
+
+      if (!unitPrice) {
+        throw new AppError(
+          "Unable to calculate price",
+          StatusCodes.BAD_REQUEST
+        );
+      }
+
+      const lineTotal = unitPrice * item.quantity;
+      totalPrice += lineTotal;
+
+      items.push({
+        productId: product._id,
+        supplierId: product.supplierId!,
+        quantity: item.quantity,
+        unitPrice,
+        ...(item.variantId && { variantId: item.variantId }),
+        ...(item.wholesaleId && { wholesaleId: item.wholesaleId }),
+      });
+    }
   }
 
   const order = await Order.create({
@@ -70,6 +135,7 @@ const createOrder = async (payload: IOrder, email: string) => {
   return order;
 };
 
+//!-----------------------------------------------------
 const getMyOrders = async (email: string) => {
   const user = await User.findOne({ email });
   if (!user) {
