@@ -6,10 +6,12 @@ const orderItemSchema = new Schema(
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
+      required: true,
     },
     supplierId: {
       type: Schema.Types.ObjectId,
       ref: "JoinAsSupplier",
+      required: true,
     },
     quantity: {
       type: Number,
@@ -26,21 +28,24 @@ const orderItemSchema = new Schema(
     },
     unitPrice: {
       type: Number,
-      // required: true,
+      required: true,
       min: 0,
     },
   },
-  { _id: false }
+  { _id: true } // ✅ important! _id:true by default, remove _id:false
 );
 
 const orderSchema = new Schema<IOrder>(
   {
     orderUniqueId: {
       type: String,
+      unique: true,
+      index: true,
     },
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
     orderType: {
       type: String,
@@ -74,7 +79,7 @@ const orderSchema = new Schema<IOrder>(
     },
     totalPrice: {
       type: Number,
-      // required: true,
+      required: true,
       min: 0,
     },
     billingInfo: {
@@ -96,19 +101,14 @@ const orderSchema = new Schema<IOrder>(
   }
 );
 
-orderSchema.pre("validate", async function (next) {
-  const doc = this as any;
-  if (doc.orderUniqueId) {
-    return next();
-  }
+orderSchema.pre("save", async function (next) {
+  if (this.orderUniqueId) return next();
 
-  const OrderModel = doc.constructor as any;
+  const OrderModel = this.constructor as any;
 
-  const lastOrder = await OrderModel.findOne(
-    { orderUniqueId: { $exists: true } },
-    { orderUniqueId: 1 }
-  )
+  const lastOrder = await OrderModel.findOne({})
     .sort({ createdAt: -1 })
+    .select("orderUniqueId")
     .lean();
 
   let lastNumber = 1000;
@@ -118,8 +118,7 @@ orderSchema.pre("validate", async function (next) {
     if (!isNaN(num)) lastNumber = num;
   }
 
-  doc.orderUniqueId = `ORD-${lastNumber + 1}`;
-
+  this.orderUniqueId = `ORD-${lastNumber + 1}`;
   next();
 });
 

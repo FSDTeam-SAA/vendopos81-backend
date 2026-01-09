@@ -291,7 +291,8 @@ const increaseProductQuantity = async (
   }
 
   const user = await User.findOne({ email });
-  if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
+  if (!user)
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
 
   const cart = await Cart.findById(cartId);
   if (!cart) throw new AppError("Cart not found", StatusCodes.NOT_FOUND);
