@@ -35,6 +35,9 @@ const orderItemSchema = new Schema(
 
 const orderSchema = new Schema<IOrder>(
   {
+    orderUniqueId: {
+      type: String,
+    },
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -92,6 +95,33 @@ const orderSchema = new Schema<IOrder>(
     versionKey: false,
   }
 );
+
+orderSchema.pre("validate", async function (next) {
+  const doc = this as any;
+  if (doc.orderUniqueId) {
+    return next();
+  }
+
+  const OrderModel = doc.constructor as any;
+
+  const lastOrder = await OrderModel.findOne(
+    { orderUniqueId: { $exists: true } },
+    { orderUniqueId: 1 }
+  )
+    .sort({ createdAt: -1 })
+    .lean();
+
+  let lastNumber = 1000;
+
+  if (lastOrder?.orderUniqueId) {
+    const num = Number(lastOrder.orderUniqueId.split("-")[1]);
+    if (!isNaN(num)) lastNumber = num;
+  }
+
+  doc.orderUniqueId = `ORD-${lastNumber + 1}`;
+
+  next();
+});
 
 const Order = model<IOrder>("Order", orderSchema);
 
