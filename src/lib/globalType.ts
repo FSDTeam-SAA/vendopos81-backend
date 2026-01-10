@@ -1,6 +1,4 @@
-export const companyName = "Vendo Pos";
-
-
+export const companyName = "Vendo Food";
 
 export const regionMap: Record<string, string> = {
   "east africa": "Eastern Africa",
@@ -32,17 +30,13 @@ export const regionMap: Record<string, string> = {
   antarctica: "Antarctica",
 };
 
-
-
 export interface IGetWholesaleParams {
   type?: string;
   page?: number;
   limit?: number;
 }
 
-
 import { Types } from "mongoose";
-
 
 export interface IWholesalePopulated {
   _id: Types.ObjectId;
@@ -63,7 +57,6 @@ export interface IWholesalePopulated {
     price: number;
   }[];
 }
-
 
 export type OrderItemInput = {
   productId: Types.ObjectId;
