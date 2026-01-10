@@ -20,5 +20,11 @@ router.get(
   orderController.getOrderFormSupplier
 );
 
+router.put(
+  "/cancel/:id",
+  auth(USER_ROLE.SUPPLIER),
+  orderController.cancelMyOrder
+);
+
 const orderRouter = router;
 export default orderRouter;

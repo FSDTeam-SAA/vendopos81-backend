@@ -460,11 +460,19 @@ const getOrderFormSupplier = async (email: string) => {
   return formattedOrders;
 };
 
+const cancelMyOrder = async (orderId: string, email: string) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  }
+};
+
 const orderService = {
   createOrder,
   getMyOrders,
   getAllOrdersForAdmin,
   getOrderFormSupplier,
+  cancelMyOrder,
 };
 
 export default orderService;

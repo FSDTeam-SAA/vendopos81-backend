@@ -50,11 +50,25 @@ const getOrderFormSupplier = catchAsync(async (req, res) => {
   });
 });
 
+const cancelMyOrder = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const { id } = req.params;
+  const result = await orderService.cancelMyOrder(id, email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Order cancelled successfully",
+    data: result,
+  });
+});
+
 const orderController = {
   createOrder,
   getMyOrders,
   getAllOrdersForAdmin,
   getOrderFormSupplier,
+  cancelMyOrder,
 };
 
 export default orderController;
