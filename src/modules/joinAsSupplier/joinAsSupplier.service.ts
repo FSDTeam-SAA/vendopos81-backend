@@ -73,8 +73,11 @@ const joinAsSupplier = async (
     /** ===============================
      * CASE 1️⃣ Logged-in user
      ===============================*/
+
+    // console.log(currentUser);
+
     if (currentUser) {
-      const dbUser = await User.findById(currentUser.userId).session(session);
+      const dbUser = await User.findById(currentUser.id).session(session);
 
       if (!dbUser) {
         throw new AppError("User not found", StatusCodes.NOT_FOUND);
