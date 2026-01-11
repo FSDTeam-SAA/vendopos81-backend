@@ -40,6 +40,7 @@ export interface IProduct {
   isOrganic?: boolean;
   isFrozen?: boolean;
   isKosher?: boolean;
+  isVendorBrand?: boolean;
   seo: ISEO;
   averageRating: number;
   totalRatings: number;

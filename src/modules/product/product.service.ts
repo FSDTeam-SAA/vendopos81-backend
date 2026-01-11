@@ -7,9 +7,9 @@ import {
 } from "../../utils/cloudinary";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { User } from "../user/user.model";
+import Wholesale from "../wholeSale/wholeSale.model";
 import { IProduct } from "./product.interface";
 import Product from "./product.model";
-import Wholesale from "../wholeSale/wholeSale.model";
 
 const createProduct = async (payload: IProduct, files: any, email: string) => {
   const user = await User.findOne({ email });
@@ -76,11 +76,14 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     seo: seoData,
     priceFrom,
     addBy: user.role === "supplier" ? "supplier" : "admin",
+    isVendorBrand: user.role === "admin" ? true : false,
   };
 
   const result = await Product.create(data);
   return result;
 };
+
+//!____________________________________________________________________________
 
 const getMyAddedProducts = async (email: string) => {
   const user = await User.findOne({ email });
@@ -476,7 +479,6 @@ const getFastMovingProducts = async (query: Record<string, any>) => {
     data: products,
   };
 };
-
 
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);

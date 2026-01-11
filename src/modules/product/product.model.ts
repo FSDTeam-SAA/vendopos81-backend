@@ -65,6 +65,7 @@ const ProductSchema = new Schema<IProduct>(
     isOrganic: { type: Boolean, default: false },
     isFrozen: { type: Boolean, default: false },
     isKosher: { type: Boolean, default: false },
+    isVendorBrand: { type: Boolean, default: false },
     seo: {
       type: SEOSchema,
       required: true,
