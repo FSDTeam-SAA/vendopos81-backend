@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 import { StatusCodes } from "http-status-codes";
 import { PipelineStage } from "mongoose";
 import AppError from "../../errors/AppError";
@@ -746,21 +747,81 @@ const getSingleProduct = async (id: string) => {
     throw new AppError("Product not found", StatusCodes.NOT_FOUND);
   }
 
-  const result = await Product.findById(id)
-    .populate({
-      path: "userId",
-      select: "firstName lastName email",
-    })
+  let product: any = await Product.findById(id)
     .populate({
       path: "categoryId",
       select: "region",
     })
     .populate({
-      path: "supplierId",
-      select: "shopName brandName logo",
-    });
-  return result;
+      path: "wholesaleId", // এখানে fastMoving বাদ দিচ্ছি না!
+      match: { isActive: true },
+    })
+    .lean();
+
+  const productId = id.toString();
+
+  // wholesale filtering (same pattern as listing)
+  const wholesales = (product.wholesaleId || [])
+    .map((wh: any) => {
+      // CASE
+      if (wh.type === "case") {
+        const caseItems = wh.caseItems.filter(
+          (item: any) => item.productId.toString() === productId
+        );
+
+        if (caseItems.length === 0) return null;
+
+        return {
+          ...wh,
+          caseItems,
+        };
+      }
+
+      // PALLET
+      if (wh.type === "pallet") {
+        const palletItems = wh.palletItems
+          .map((pallet: any) => {
+            const items = pallet.items.filter(
+              (item: any) => item.productId.toString() === productId
+            );
+            if (items.length === 0) return null;
+
+            return {
+              ...pallet,
+              items,
+            };
+          })
+          .filter(Boolean);
+
+        if (palletItems.length === 0) return null;
+
+        return {
+          ...wh,
+          palletItems,
+        };
+      }
+    })
+    .filter(Boolean);
+
+  // === OUTPUT FORMAT (Single Product) ===
+  if (wholesales.length > 0) {
+    // remove retail data
+    const { variants, priceFrom, discountPriceFrom, ...restProduct } = product;
+
+    return {
+      ...restProduct,
+      wholesaleId: wholesales,
+    };
+  }
+
+  // No wholesale → return retail
+  return {
+    ...product,
+    wholesaleId: [],
+  };
 };
+
+
 
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);

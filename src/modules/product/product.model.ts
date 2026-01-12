@@ -81,7 +81,7 @@ const ProductSchema = new Schema<IProduct>(
     isFeatured: { type: Boolean, default: false },
     isPallet: { type: Boolean, default: false },
     isCase: { type: Boolean, default: false },
-    quantity: { type: Number, default: 0 },
+    // quantity: { type: Number, default: 0 },
     isAvailable: { type: Boolean, default: true },
     wholesaleId: [
       {
