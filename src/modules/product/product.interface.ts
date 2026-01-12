@@ -47,6 +47,8 @@ export interface IProduct {
   totalReviews: number;
   status: "pending" | "approved" | "rejected";
   isFeatured: boolean;
+  isPallet: boolean;
+  isCase: boolean;
   quantity?: number;
   isAvailable: boolean;
   addBy: "admin" | "supplier"; //

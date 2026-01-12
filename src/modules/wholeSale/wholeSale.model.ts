@@ -44,11 +44,11 @@ const palletItemSchema = new Schema<IPalletItem>(
       required: true,
     },
 
-    caseQuantity: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
+    // caseQuantity: {
+    //   type: Number,
+    //   required: true,
+    //   min: 1,
+    // },
   },
 //   { _id: false }
 );

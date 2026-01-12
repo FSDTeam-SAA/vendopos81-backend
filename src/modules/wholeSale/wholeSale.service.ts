@@ -154,8 +154,10 @@ const addWholeSale = async (payload: IWholesale) => {
     await Product.updateMany(
       { _id: { $in: productIdsToUpdate } },
       {
-        $addToSet: {
-          wholesaleId: wholesaleId,
+        $addToSet: { wholesaleId: wholesaleId },
+        $set: {
+          isPallet: payload.type === "pallet",
+          isCase: payload.type === "case",
         },
       },
       { session }
@@ -184,6 +186,8 @@ const getAllWholeSale = async ({
     filter.type = type;
   }
 
+  throw new Error("Not implemented this one right now i think that...");
+
   const skip = (page - 1) * limit;
 
   const [data, total] = await Promise.all([
@@ -203,7 +207,9 @@ const getAllWholeSale = async ({
 };
 
 const updateWholeSale = async (id: string, payload: IWholesale) => {
-  throw new Error("without thinking ui i cannot do it properly. I know how i do it.");
+  throw new Error(
+    "without thinking ui i cannot do it properly. I know how i do it."
+  );
 };
 
 const wholeSaleService = {

@@ -79,7 +79,9 @@ const ProductSchema = new Schema<IProduct>(
       default: "pending",
     },
     isFeatured: { type: Boolean, default: false },
-    quantity: { type: Number, default: 0 },
+    isPallet: { type: Boolean, default: false },
+    isCase: { type: Boolean, default: false },
+    // quantity: { type: Number, default: 0 },
     isAvailable: { type: Boolean, default: true },
     wholesaleId: [
       {
@@ -118,7 +120,6 @@ ProductSchema.pre("save", function (next) {
 
   next();
 });
-
 
 const Product = model<IProduct>("Product", ProductSchema);
 
