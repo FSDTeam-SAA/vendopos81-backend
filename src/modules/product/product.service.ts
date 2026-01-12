@@ -806,7 +806,7 @@ const getSingleProduct = async (id: string) => {
   // === OUTPUT FORMAT (Single Product) ===
   if (wholesales.length > 0) {
     // remove retail data
-    const { variants, priceFrom, discountPriceFrom, ...restProduct } = product;
+    const { variants, priceFrom, ...restProduct } = product;
 
     return {
       ...restProduct,
@@ -820,8 +820,6 @@ const getSingleProduct = async (id: string) => {
     wholesaleId: [],
   };
 };
-
-
 
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);

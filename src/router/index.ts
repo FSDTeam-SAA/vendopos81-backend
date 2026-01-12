@@ -1,16 +1,17 @@
 import { Router } from "express";
 import authRouter from "../modules/auth/auth.router";
+import cartRouter from "../modules/cart/cart.router";
 import categoryRouter from "../modules/category/category.router";
 import contactRouter from "../modules/contact/contact.router";
 import joinAsDriverRouter from "../modules/joinAsDriver/joinAsDriver.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
+import orderRouter from "../modules/order/order.router";
 import productRouter from "../modules/product/product.router";
+import reviewRouter from "../modules/review/review.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
 import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
 import wishlistRouter from "../modules/wishlist/wishlist.router";
-import cartRouter from "../modules/cart/cart.router";
-import orderRouter from "../modules/order/order.router";
 
 const router = Router();
 
@@ -36,7 +37,7 @@ const moduleRoutes = [
     route: joinAsSupplierRouter,
   },
   {
-    path: "/admin/driver", // This handles all your admin-prefixed requests
+    path: "/admin/driver", 
     route: joinAsDriverRouter,
   },
   {
@@ -66,6 +67,10 @@ const moduleRoutes = [
   {
     path: "/order",
     route: orderRouter,
+  },
+  {
+    path: "/review",
+    route: reviewRouter,
   },
 ];
 
