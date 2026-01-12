@@ -65,6 +65,17 @@ const getAllWholeSaleProductForAdmin = catchAsync(async (req, res) => {
   });
 });
 
+const getFeaturedProducts = catchAsync(async (req, res) => {
+  const result = await productService.getFeaturedProducts();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Featured products retrieved successfully",
+    data: result,
+  });
+});
+
 const getFastMovingProducts = catchAsync(async (req, res) => {
   const result = await productService.getFastMovingProducts(req.query);
 
@@ -135,6 +146,7 @@ const productController = {
   getFastMovingProducts,
   getAllProductForAdmin,
   getFilterCategories,
+  getFeaturedProducts,
   getSingleProduct,
   updateProductStatus,
   updateProduct,

@@ -31,6 +31,7 @@ router.get("/all-wholesale", productController.getAllWholeSaleProductForAdmin);
 router.get("/all-fast-moving", productController.getFastMovingProducts);
 
 router.get("/filter", productController.getFilterCategories);
+router.get("/featured", productController.getFeaturedProducts);
 
 router.get(
   "/:id",
