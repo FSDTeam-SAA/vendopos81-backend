@@ -400,89 +400,145 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   const limit = Number(query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const filter = {
-    wholesaleId: { $exists: true, $ne: [] },
-  };
+  const pipeline: any[] = [];
 
-  const products = await Product.find(filter)
-    .select("-variants")
-    .populate("wholesaleId")
-    .populate({
-      path: "categoryId",
-      select: "region slug",
-    })
-    .populate({
-      path: "supplierId",
-      select: "shopName brandName",
-    })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
-
-  const data = products.map((product) => {
-    const productId = product._id.toString();
-
-    const filteredWholesale = product
-      .wholesaleId! // ❌ remove fastMoving type
-      .filter((wh: any) => wh.type !== "fastMoving")
-      // ✅ filter items inside wholesale
-      .map((wh: any) => {
-        const whObj = wh.toObject();
-
-        // PALLET
-        if (whObj.type === "pallet") {
-          whObj.palletItems = whObj.palletItems.map((pallet: any) => ({
-            ...pallet,
-            items: pallet.items.filter(
-              (item: any) => item.productId.toString() === productId
-            ),
-          }));
-        }
-
-        // CASE
-        if (whObj.type === "case") {
-          whObj.caseItems = whObj.caseItems.filter(
-            (item: any) => item.productId.toString() === productId
-          );
-        }
-
-        return whObj;
-      });
-
-    return {
-      _id: product._id,
-      userId: product.userId,
-      categoryId: product.categoryId,
-      supplierId: product.supplierId,
-      title: product.title,
-      slug: product.slug,
-      shortDescription: product.shortDescription,
-      description: product.description,
-      images: product.images,
-      productType: product.productType,
-      productName: product.productName,
-      shelfLife: product.shelfLife,
-      originCountry: product.originCountry,
-      isHalal: product.isHalal,
-      isOrganic: product.isOrganic,
-      isFrozen: product.isFrozen,
-      isKosher: product.isKosher,
-      seo: product.seo,
-      averageRating: product.averageRating,
-      totalRatings: product.totalRatings,
-      totalReviews: product.totalReviews,
-      status: product.status,
-      isFeatured: product.isFeatured,
-      addBy: product.addBy,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-      wholesaleId: filteredWholesale,
-      isAvailable: product.isAvailable,
-      quantity: product.quantity,
-    };
+  // ================= BASE FILTER =================
+  pipeline.push({
+    $match: {
+      wholesaleId: { $exists: true, $ne: [] },
+    },
   });
 
-  const total = await Product.countDocuments(filter);
+  // ================= SEARCH =================
+  if (query.search) {
+    const regex = new RegExp(query.search, "i");
+    pipeline.push({
+      $match: {
+        $or: [
+          { title: regex },
+          { originCountry: regex },
+          { productName: regex },
+          { productType: regex },
+        ],
+      },
+    });
+  }
+
+  // ================= ORIGIN COUNTRY FILTER =================
+  if (query.originCountry) {
+    pipeline.push({
+      $match: {
+        originCountry: new RegExp(`^${query.originCountry}$`, "i"),
+      },
+    });
+  }
+
+  // ================= CATEGORY LOOKUP =================
+  pipeline.push(
+    {
+      $lookup: {
+        from: "categories",
+        localField: "categoryId",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    { $unwind: "$category" }
+  );
+
+  // ================= REGION FILTER =================
+  if (query.categoryRegion) {
+    pipeline.push({
+      $match: {
+        "category.categoryRegion": new RegExp(`^${query.categoryRegion}$`, "i"),
+      },
+    });
+  }
+
+  // ================= SUPPLIER LOOKUP =================
+  pipeline.push(
+    {
+      $lookup: {
+        from: "joinassuppliers",
+        localField: "supplierId",
+        foreignField: "_id",
+        as: "supplier",
+      },
+    },
+    { $unwind: "$supplier" }
+  );
+
+  // ================= SUPPLIER BRAND FILTER =================
+  if (query.supplierBrand) {
+    pipeline.push({
+      $match: {
+        "supplier.brandName": new RegExp(`^${query.supplierBrand}$`, "i"),
+      },
+    });
+  }
+
+  // ================= SORT =================
+  let sort: any = { createdAt: -1 };
+  if (query.sort === "az") sort = { productName: 1 };
+  if (query.sort === "za") sort = { productName: -1 };
+  if (query.sort === "old") sort = { createdAt: 1 };
+
+  pipeline.push({ $sort: sort });
+
+  // ================= PAGINATION =================
+  pipeline.push({ $skip: skip }, { $limit: limit });
+
+  // ================= WHOLESALE LOOKUP =================
+  pipeline.push({
+    $lookup: {
+      from: "wholesales",
+      localField: "wholesaleId",
+      foreignField: "_id",
+      as: "wholesaleId",
+    },
+  });
+
+  // ================= SHAPE RESPONSE =================
+  pipeline.push({
+    $project: {
+      title: 1,
+      slug: 1,
+      productName: 1,
+      productType: 1,
+      originCountry: 1,
+      images: 1,
+      status: 1,
+      isFeatured: 1,
+      createdAt: 1,
+
+      // 👇 rename populated fields
+      categoryId: {
+        _id: "$category._id",
+        region: "$category.region",
+        slug: "$category.slug",
+      },
+
+      supplierId: {
+        _id: "$supplier._id",
+        shopName: "$supplier.shopName",
+        brandName: "$supplier.brandName",
+      },
+
+      wholesaleId: 1,
+    },
+  });
+
+  const data = await Product.aggregate(pipeline);
+
+  // ================= TOTAL COUNT =================
+  const totalPipeline = pipeline.filter(
+    (p) => !p.$skip && !p.$limit && !p.$sort
+  );
+
+  totalPipeline.push({ $count: "total" });
+
+  const totalResult = await Product.aggregate(totalPipeline);
+  const total = totalResult[0]?.total || 0;
 
   return {
     meta: {
@@ -550,7 +606,6 @@ const getFastMovingProducts = async (query: Record<string, any>) => {
   };
 };
 
-
 const getFilterCategories = async () => {
   const result = await Product.aggregate([
     // Join categories
@@ -598,8 +653,6 @@ const getFilterCategories = async () => {
 
   return result[0] || { allBrands: [], allRegion: [], allOriginCountry: [] };
 };
-
-
 
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);
