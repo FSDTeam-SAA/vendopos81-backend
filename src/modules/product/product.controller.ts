@@ -111,6 +111,17 @@ const getFilterCategories = catchAsync(async (req, res) => {
   });
 });
 
+const getTopRatedProducts = catchAsync(async (req, res) => {
+  const result = await productService.getTopRatedProducts();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Top rated products retrieved successfully",
+    data: result,
+  });
+});
+
 const updateProductStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -148,6 +159,7 @@ const productController = {
   getFilterCategories,
   getFeaturedProducts,
   getSingleProduct,
+  getTopRatedProducts,
   updateProductStatus,
   updateProduct,
 };
