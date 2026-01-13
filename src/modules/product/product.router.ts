@@ -33,6 +33,8 @@ router.get("/all-fast-moving", productController.getFastMovingProducts);
 router.get("/filter", productController.getFilterCategories);
 router.get("/featured", productController.getFeaturedProducts);
 
+router.get("/top-rated", productController.getTopRatedProducts);
+
 router.get(
   "/:id",
   //   auth(USER_ROLE.ADMIN, USER_ROLE.SUPPLIER),

@@ -821,6 +821,42 @@ const getSingleProduct = async (id: string) => {
   };
 };
 
+const getTopRatedProducts = async () => {
+  const products = await Product.find({
+    // status: "approved", //!If you want to show only approved products
+    averageRating: { $gt: 0 },
+  })
+    .sort({ averageRating: -1 })
+    .limit(10)
+    .populate({
+      path: "categoryId",
+      select: "region slug",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName",
+    })
+    .populate({
+      path: "wholesaleId",
+      match: { type: { $ne: "fastMoving" }, isActive: true },
+      select: "-__v -createdAt -updatedAt",
+    })
+    .lean();
+
+  const formattedProducts = products.map((p: any) => {
+    const hasWholesale = p.wholesaleId && p.wholesaleId.length > 0;
+
+    return {
+      ...p,
+      variants: hasWholesale ? [] : p.variants || [],
+    };
+  });
+
+  return formattedProducts;
+
+  return products;
+};
+
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);
   if (!isProductExist) {
@@ -930,6 +966,7 @@ const productService = {
   getAllProducts,
   getAllProductForAdmin,
   getFilterCategories,
+  getTopRatedProducts,
   updateProductStatus,
   updateProduct,
 };
