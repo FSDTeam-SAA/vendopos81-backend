@@ -65,7 +65,18 @@ const getAllReviews = async (query: any) => {
   // 📌 Pagination Query
   // ================
   const [data, total] = await Promise.all([
-    Review.find(filter).sort(sort).skip(skip).limit(limit),
+    Review.find(filter).sort(sort).skip(skip).limit(limit).populate({
+      path: "userId",
+      select: "firstName lastName image",
+    }),
+    // .populate({
+    //   path: "productId",
+    //   select: "title productType productName",
+    // })
+    // .populate({
+    //   path: "supplierId",
+    //   select: "shopName",
+    // }),
     Review.countDocuments(filter),
   ]);
 
@@ -117,6 +128,29 @@ const getAllReviews = async (query: any) => {
   };
 };
 
+const getSingleReview = async (id: string) => {
+  const result = await Review.findById(id)
+    .populate({
+      path: "userId",
+      select: "firstName lastName email image",
+    })
+    .populate({
+      path: "productId",
+      select: "title productType productName supplierId",
+      populate: {
+        path: "supplierId",
+        select: "shopName", // fields from JoinAsSupplier model
+      },
+    });
+    // .populate({
+    //   path: "supplierId",
+    //   select: "shopName",
+    // });
+  if (!result) {
+    throw new AppError("Review not found", 404);
+  }
+  return result;
+};
 
 const updateReviewStatus = async (id: string, status: string) => {
   const review = await Review.findById(id);
@@ -152,6 +186,7 @@ const updateReviewStatus = async (id: string, status: string) => {
 const reviewService = {
   createReview,
   getAllReviews,
+  getSingleReview,
   updateReviewStatus,
 };
 

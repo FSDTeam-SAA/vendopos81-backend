@@ -12,6 +12,7 @@ router.post(
 );
 
 router.get("/all", reviewController.getAllReviews);
+router.get("/:id", reviewController.getSingleReview);
 
 router.put(
   "/update/:id",

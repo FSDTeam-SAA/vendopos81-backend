@@ -22,11 +22,22 @@ const getAllReviews = catchAsync(async (req, res) => {
     success: true,
     message: "All reviews retrieved successfully",
     data: result.data,
-    analytics: result.analytics, 
+    analytics: result.analytics,
     meta: result.meta,
   });
 });
 
+const getSingleReview = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await reviewService.getSingleReview(id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Review retrieved successfully",
+    data: result,
+  });
+});
 
 const updateReviewStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -43,6 +54,7 @@ const updateReviewStatus = catchAsync(async (req, res) => {
 const reviewController = {
   createReview,
   getAllReviews,
+  getSingleReview,
   updateReviewStatus,
 };
 
