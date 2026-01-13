@@ -854,8 +854,45 @@ const getTopRatedProducts = async () => {
 
   return formattedProducts;
 
-  return products;
+  // return products;
 };
+
+const getCaseDealsProducts = async () => {
+  // Step 1: Find all products that are available and approved
+  const products = await Product.find({
+    isAvailable: true,
+    // status: "approved", //!If you want to show only approved products
+  })
+    .populate({
+      path: "categoryId",
+      select: "region slug",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName",
+    })
+    .populate({
+      path: "wholesaleId",
+      match: { type: "case", isActive: true }, // only case wholesale
+      select: "-__v -createdAt -updatedAt",
+    })
+    .lean();
+
+  // Step 2: Format products: remove variants if case wholesale exists
+  const formattedProducts = products.map((p: any) => {
+    const hasCaseWholesale = p.wholesaleId && p.wholesaleId.length > 0;
+
+    return {
+      ...p,
+      variants: hasCaseWholesale ? [] : p.variants || [],
+    };
+  });
+
+  // Step 3: Return only products that have at least 1 case wholesale
+  return formattedProducts.filter((p: any) => p.wholesaleId.length > 0);
+};
+
+
 
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);
@@ -967,6 +1004,7 @@ const productService = {
   getAllProductForAdmin,
   getFilterCategories,
   getTopRatedProducts,
+  getCaseDealsProducts,
   updateProductStatus,
   updateProduct,
 };

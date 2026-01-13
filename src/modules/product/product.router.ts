@@ -32,8 +32,8 @@ router.get("/all-fast-moving", productController.getFastMovingProducts);
 
 router.get("/filter", productController.getFilterCategories);
 router.get("/featured", productController.getFeaturedProducts);
-
 router.get("/top-rated", productController.getTopRatedProducts);
+router.get("/case", productController.getCaseDealsProducts);
 
 router.get(
   "/:id",
