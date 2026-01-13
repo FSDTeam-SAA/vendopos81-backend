@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 import AppError from "../../errors/AppError";
 import Order from "../order/order.model";
 import Product from "../product/product.model";
@@ -39,10 +40,83 @@ const createReview = async (payload: IReview, email: string) => {
   return result;
 };
 
-const getAllReviews = async () => {
-  const result = await Review.find();
-  return result;
+const getAllReviews = async (query: any) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  // Filter by status
+  const filter: any = {};
+  if (query.status) {
+    filter.status = query.status; // approved / pending / rejected
+  }
+
+  // Sorting
+  let sort: any = {};
+  if (query.sort === "rating_asc") {
+    sort.rating = 1;
+  } else if (query.sort === "rating_desc") {
+    sort.rating = -1;
+  } else {
+    sort.createdAt = -1; // default: latest first
+  }
+
+  // ================
+  // 📌 Pagination Query
+  // ================
+  const [data, total] = await Promise.all([
+    Review.find(filter).sort(sort).skip(skip).limit(limit),
+    Review.countDocuments(filter),
+  ]);
+
+  // ================
+  // 📊 Analytics
+  // ================
+
+  const [
+    totalReview,
+    totalPendingReview,
+    avgRatingAggregation,
+    thisMonthReviewCount,
+  ] = await Promise.all([
+    Review.countDocuments(), // total all
+    Review.countDocuments({ status: "pending" }), // pending count
+    Review.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgRating: { $avg: "$rating" },
+        },
+      },
+    ]),
+    Review.countDocuments({
+      createdAt: {
+        $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // first day of current month
+        $lte: new Date(), // now
+      },
+    }),
+  ]);
+
+  const averageRating =
+    avgRatingAggregation.length > 0 ? avgRatingAggregation[0].avgRating : 0;
+
+  return {
+    data,
+    analytics: {
+      totalReview,
+      totalPendingReview,
+      averageRating: Number(averageRating.toFixed(2)),
+      thisMonthReviewCount,
+    },
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
 };
+
 
 const updateReviewStatus = async (id: string, status: string) => {
   const review = await Review.findById(id);
