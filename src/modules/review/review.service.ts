@@ -142,10 +142,10 @@ const getSingleReview = async (id: string) => {
         select: "shopName", // fields from JoinAsSupplier model
       },
     });
-    // .populate({
-    //   path: "supplierId",
-    //   select: "shopName",
-    // });
+  // .populate({
+  //   path: "supplierId",
+  //   select: "shopName",
+  // });
   if (!result) {
     throw new AppError("Review not found", 404);
   }
@@ -183,11 +183,20 @@ const updateReviewStatus = async (id: string, status: string) => {
   return result;
 };
 
+const deleteReview = async (id: string) => {
+  const result = await Review.findByIdAndDelete(id);
+  if (!result) {
+    throw new AppError("Review not found", 404);
+  }
+  return result;
+};
+
 const reviewService = {
   createReview,
   getAllReviews,
   getSingleReview,
   updateReviewStatus,
+  deleteReview,
 };
 
 export default reviewService;

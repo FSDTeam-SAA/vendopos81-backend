@@ -12,12 +12,18 @@ router.post(
 );
 
 router.get("/all", reviewController.getAllReviews);
-router.get("/:id", reviewController.getSingleReview);
+router.get("/:id", auth(USER_ROLE.ADMIN), reviewController.getSingleReview);
 
 router.put(
   "/update/:id",
-  //   auth(USER_ROLE.CUSTOMER),
+  auth(USER_ROLE.ADMIN),
   reviewController.updateReviewStatus
+);
+
+router.delete(
+  "/delete/:id",
+  auth(USER_ROLE.ADMIN),
+  reviewController.deleteReview
 );
 
 const reviewRouter = router;
