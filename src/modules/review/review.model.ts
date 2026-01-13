@@ -6,12 +6,14 @@ const reviewModel = new Schema<IReview>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      //   required: true,
+    },
+    orderId: {
+      type: Schema.Types.ObjectId,
+      ref: "Order",
     },
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
-      //   required: true,
     },
     rating: {
       type: Number,
@@ -22,6 +24,11 @@ const reviewModel = new Schema<IReview>(
     comment: {
       type: String,
       required: true,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
     },
   },
   { timestamps: true, versionKey: false }
