@@ -15,14 +15,17 @@ import { IProduct } from "./product.interface";
 import Product from "./product.model";
 
 const createProduct = async (payload: IProduct, files: any, email: string) => {
+  // 🔹 USER CHECK
   const user = await User.findOne({ email });
-  if (!user)
+  if (!user) {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  }
 
+  // 🔹 SUPPLIER CHECK
   let isSupplierExist = null;
-
   if (user.role === "supplier") {
     isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
+
     if (!isSupplierExist) {
       throw new AppError(
         "You have not applied to be a supplier",
@@ -45,8 +48,8 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     }
   }
 
+  // 🔹 UPLOAD IMAGES
   const uploadedImages: { url: string; public_id: string }[] = [];
-
   if (files && files.length > 0) {
     for (const file of files) {
       const uploaded = await uploadToCloudinary(file.path, "products");
@@ -57,31 +60,76 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     }
   }
 
+  // 🔹 SEO DATA
   const seoData = payload.seo || {
     metaTitle: payload.title,
     metaDescription: payload.shortDescription,
-    // keywords: [payload.productType, payload.originCountry],
   };
 
+  // 🔹 SLUG
   const slug = generateShopSlug(payload.title);
 
-  let priceFrom: number | undefined;
-  if (payload.variants && payload.variants.length > 0) {
-    priceFrom = payload.variants[0].price;
+  // 🔹 VARIANT PROCESSING
+  let variants = payload.variants || [];
+
+  // discountPrice calculate
+  variants = variants.map((v) => {
+    const discount = v.discount ?? 0;
+
+    return {
+      ...v,
+      discount,
+      discountPrice:
+        discount > 0 ? v.price - (v.price * discount) / 100 : v.price,
+    };
+  });
+
+  // sort by lowest price
+  variants.sort((a, b) => a.price - b.price);
+
+  // 🔹 PRICE & DISCOUNT LOGIC
+  let priceFrom = 0;
+  let discountPriceFrom = 0;
+  let showOnlyDiscount = 0;
+
+  if (variants.length > 0) {
+    const lowestVariant = variants[0];
+
+    // 1️⃣ lowest price
+    priceFrom = lowestVariant.price;
+
+    // 2️⃣ discountPriceFrom → only if lowest has discount
+    if (lowestVariant.discount! > 0) {
+      discountPriceFrom = lowestVariant.discountPrice ?? 0;
+      showOnlyDiscount = lowestVariant.discount ?? 0;
+    } else {
+      discountPriceFrom = 0;
+
+      // 3️⃣ showOnlyDiscount → other variant discount
+      const variantWithDiscount = variants.find(
+        (v) => v.discount && v.discount > 0
+      );
+      showOnlyDiscount = variantWithDiscount?.discount ?? 0;
+    }
   }
 
+  // 🔹 PRODUCT DATA
   const data = {
     ...payload,
     images: uploadedImages,
+    variants,
     userId: user._id,
     supplierId: user.role === "supplier" ? isSupplierExist!._id : null,
     slug,
     seo: seoData,
     priceFrom,
+    discountPriceFrom,
+    showOnlyDiscount,
     addBy: user.role === "supplier" ? "supplier" : "admin",
-    isVendorBrand: user.role === "admin" ? true : false,
+    isVendorBrand: user.role === "admin",
   };
 
+  // 🔹 CREATE PRODUCT
   const result = await Product.create(data);
   return result;
 };

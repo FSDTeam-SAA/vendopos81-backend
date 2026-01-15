@@ -64,13 +64,10 @@ const updateCategory = catchAsync(async (req, res) => {
   });
 });
 
-
-
 const categoryController = {
   createCategory,
   getCategories,
   updateCategory,
-
 };
 
 export default categoryController;

@@ -34,6 +34,7 @@ export interface IProduct {
   variants: IProductVariant[];
   priceFrom?: number;
   discountPriceFrom?: number;
+  showOnlyDiscount?: number;
   shelfLife?: string;
   originCountry?: string;
   isHalal?: boolean;
