@@ -15,13 +15,11 @@ import { IProduct } from "./product.interface";
 import Product from "./product.model";
 
 const createProduct = async (payload: IProduct, files: any, email: string) => {
-  // 🔹 USER CHECK
   const user = await User.findOne({ email });
   if (!user) {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
 
-  // 🔹 SUPPLIER CHECK
   let isSupplierExist = null;
   if (user.role === "supplier") {
     isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
@@ -166,10 +164,8 @@ const getAllProducts = async (query: any) => {
   const pageNumber = Math.max(Number(page), 1);
   const pageLimit = Math.max(Number(limit), 1);
   const skip = (pageNumber - 1) * pageLimit;
-
   const pipeline: any[] = [];
 
-  // ===================== CATEGORY LOOKUP =====================
   pipeline.push({
     $lookup: {
       from: "categories",
@@ -999,16 +995,13 @@ const updateProduct = async (
   files: Express.Multer.File[],
   email: string
 ) => {
-  // 1️⃣ Find user
   const user = await User.findOne({ email });
   if (!user)
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
 
-  // 2️⃣ Check product exists
   const product = await Product.findById(id);
   if (!product) throw new AppError("Product not found", StatusCodes.NOT_FOUND);
 
-  // 3️⃣ Supplier validation
   let isSupplierExist = null;
   if (user.role === "supplier") {
     isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
@@ -1029,7 +1022,6 @@ const updateProduct = async (
       );
   }
 
-  // 4️⃣ Upload new images if provided
   const uploadedImages: { url: string; public_id: string }[] = [];
   if (files && files.length > 0) {
     for (const img of Array.isArray(product.images) ? product.images : []) {
@@ -1048,10 +1040,9 @@ const updateProduct = async (
   const seoData = payload.seo || {
     metaTitle: payload.title || product.title,
     metaDescription: payload.shortDescription || product.shortDescription,
-    // keywords: [payload.productType, payload.originCountry].filter(Boolean),
+    
   };
 
-  // 6️⃣ Handle slug
   const slug = payload.slug || generateShopSlug(payload.title || product.title);
 
   // 7️⃣ Handle priceFrom from first variant

@@ -42,7 +42,6 @@ const getAllProducts = catchAsync(async (req, res) => {
 
 const getAllProductForAdmin = catchAsync(async (req, res) => {
   const result = await productService.getAllProductForAdmin(req.query);
-  // console.log(result);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
