@@ -22,7 +22,7 @@ router.get(
 
 router.put(
   "/cancel/:id",
-  auth(USER_ROLE.SUPPLIER),
+  auth(USER_ROLE.CUSTOMER),
   orderController.cancelMyOrder
 );
 

@@ -7,6 +7,7 @@ import Cart from "../cart/cart.model";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import Product from "../product/product.model";
 import { User } from "../user/user.model";
+import Wholesale from "../wholeSale/wholeSale.model";
 import Order from "./order.model";
 
 const createOrder = async (payload: any, email: string) => {
@@ -495,10 +496,120 @@ const getOrderFormSupplier = async (email: string, query: any) => {
 };
 
 const cancelMyOrder = async (orderId: string, email: string) => {
+  // ========================
+  // 1️⃣ USER CHECK
+  // ========================
   const user = await User.findOne({ email });
   if (!user) {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
+
+  // ========================
+  // 2️⃣ ORDER CHECK
+  // ========================
+  const order: any = await Order.findById(orderId)
+    .populate("userId")
+    .populate("items.productId")
+    .populate("items.variantId")
+    .populate("items.wholesaleId")
+    .lean();
+
+  if (!order) {
+    throw new AppError("Your order does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  // ========================
+  // 3️⃣ VALIDATION
+  // ========================
+  if (order.paymentType !== "cod") {
+    throw new AppError(
+      "Only COD orders can be cancelled",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  if (order.orderStatus !== "pending") {
+    throw new AppError(
+      "Only pending orders can be cancelled",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  if (order.userId._id.toString() !== user._id.toString()) {
+    throw new AppError(
+      "You can only cancel your own orders",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  // ========================
+  // 4️⃣ RESTOCK (ATOMIC WAY)
+  // ========================
+  for (const item of order.items) {
+    const productId = item.productId._id;
+    const qty = item.quantity;
+
+    // ✅ 4.1 PRODUCT TOTAL QUANTITY
+    await Product.updateOne({ _id: productId }, { $inc: { quantity: qty } });
+
+    // ✅ 4.2 VARIANT RESTOCK
+    if (item.variantId) {
+      await Product.updateOne(
+        { _id: productId },
+        {
+          $inc: {
+            "variants.$[v].stock": qty,
+          },
+        },
+        {
+          arrayFilters: [{ "v._id": item.variantId._id }],
+        },
+      );
+    }
+
+    // ✅ 4.3 WHOLESALE RESTOCK
+    if (item.wholesaleId) {
+      const wholesaleId = item.wholesaleId._id;
+
+      // 🔹 CASE
+      if (item.wholesaleId.type === "case") {
+        await Wholesale.updateOne(
+          { _id: wholesaleId },
+          {
+            $inc: {
+              "caseItems.$[c].quantity": qty,
+            },
+          },
+          {
+            arrayFilters: [{ "c.productId": productId }],
+          },
+        );
+      }
+
+      // 🔹 PALLET
+      if (item.wholesaleId.type === "pallet") {
+        await Wholesale.updateOne(
+          { _id: wholesaleId },
+          {
+            $inc: {
+              "palletItems.$[].items.$[i].totalCases": qty,
+            },
+          },
+          {
+            arrayFilters: [{ "i.productId": productId }],
+          },
+        );
+      }
+    }
+  }
+
+  // ========================
+  // 5️⃣ CANCEL ORDER
+  // ========================
+  await Order.updateOne(
+    { _id: orderId, userId: user._id },
+    { $set: { orderStatus: "cancelled" } },
+  );
 };
 
 const orderService = {
