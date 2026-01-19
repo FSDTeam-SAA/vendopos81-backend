@@ -73,6 +73,11 @@ const userSchema = new Schema<IUser>(
     otpExpires: { type: Date, default: null },
     resetPasswordOtp: { type: String, default: null },
     resetPasswordOtpExpires: { type: Date, default: null },
+    // Stripe Connected Account
+    stripeAccountId: { type: String },
+    chargesEnabled: { type: Boolean, default: false },
+    payoutsEnabled: { type: Boolean, default: false },
+    stripeOnboardingCompleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -88,13 +93,13 @@ const userSchema = new Schema<IUser>(
         return ret;
       },
     },
-  }
+  },
 );
 
 userSchema.pre("save", async function (next) {
   this.password = await bcrypt.hash(
     this.password,
-    Number(config.bcryptSaltRounds)
+    Number(config.bcryptSaltRounds),
   );
 
   next();
@@ -107,19 +112,19 @@ userSchema.post("save", function (doc, next) {
 
 userSchema.statics.isPasswordMatch = async function (
   password: string,
-  hashedPassword: string
+  hashedPassword: string,
 ) {
   return await bcrypt.compare(password, hashedPassword);
 };
 
 userSchema.statics.isUserExistByEmail = async function (
-  email: string
+  email: string,
 ): Promise<IUser | null> {
   return await User.findOne({ email });
 };
 
 userSchema.statics.isUserExistById = async function (
-  _id: string
+  _id: string,
 ): Promise<IUser | null> {
   return await User.findOne({ _id });
 };

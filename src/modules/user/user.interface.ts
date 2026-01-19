@@ -26,6 +26,12 @@ export interface IUser {
   otpExpires?: Date | null;
   resetPasswordOtp?: string | null;
   resetPasswordOtpExpires?: Date | null;
+  stripeAccountId?: string;
+  chargesEnabled?: boolean;
+  payoutsEnabled?: boolean;
+  stripeOnboardingCompleted?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface userModel extends Model<IUser> {

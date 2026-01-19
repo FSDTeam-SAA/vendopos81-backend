@@ -34,4 +34,13 @@ export default {
     AES_IV: process.env.AES_IV,
   },
   frontend_reset_password_url: process.env.RESET_PASSWORD_URL,
+
+  stripe: {
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripeAdminWebhookSecret: process.env.STRIPE_WEBHOOK_ADMIN_SECRET,
+    stripeAdminWebhookUrl: process.env.STRIPE_WEBHOOK_ADMIN_URL,
+
+    stripeOnboardWebhookSecret: process.env.STRIPE_ONBOARDING_SECRET_KEY,
+    stripeOnboardWebhookUrl: process.env.STRIPE_ONBOARDING_WEBHOOK_URL,
+  },
 };

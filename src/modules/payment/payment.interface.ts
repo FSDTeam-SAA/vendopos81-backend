@@ -6,6 +6,7 @@ export interface IPayment {
   amount: number;
   status: "pending" | "success" | "failed";
   customTransactionId?: string;
+  paymentMethod?: string;
   createdAt: Date;
   updatedAt: Date;
 }

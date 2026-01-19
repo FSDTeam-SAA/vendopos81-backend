@@ -13,6 +13,7 @@ import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
 import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
 import wishlistRouter from "../modules/wishlist/wishlist.router";
+import onboardRouter from "../modules/onboard/onboard.router";
 
 const router = Router();
 
@@ -77,6 +78,10 @@ const moduleRoutes = [
     path: "/payment",
     route: paymentRouter,
   },
+  {
+    path: "/onboard",
+    route: onboardRouter,
+  }
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
