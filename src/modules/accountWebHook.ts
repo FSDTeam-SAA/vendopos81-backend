@@ -64,6 +64,10 @@ export const connectedAccountWebhookHandler = catchAsync(async (req, res) => {
     // }
     else {
       console.log(`[Stripe] No handler for event type: ${type}`);
+      throw new AppError(
+        `No handler for event type: ${type}`,
+        StatusCodes.BAD_REQUEST,
+      );
     }
 
     // 3️⃣ Acknowledge receipt
