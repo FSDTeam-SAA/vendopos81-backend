@@ -6,6 +6,7 @@ import contactRouter from "../modules/contact/contact.router";
 import joinAsDriverRouter from "../modules/joinAsDriver/joinAsDriver.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
 import orderRouter from "../modules/order/order.router";
+import paymentRouter from "../modules/payment/payment.router";
 import productRouter from "../modules/product/product.router";
 import reviewRouter from "../modules/review/review.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
@@ -37,7 +38,7 @@ const moduleRoutes = [
     route: joinAsSupplierRouter,
   },
   {
-    path: "/admin/driver", 
+    path: "/admin/driver",
     route: joinAsDriverRouter,
   },
   {
@@ -71,6 +72,10 @@ const moduleRoutes = [
   {
     path: "/review",
     route: reviewRouter,
+  },
+  {
+    path: "/payment",
+    route: paymentRouter,
   },
 ];
 
