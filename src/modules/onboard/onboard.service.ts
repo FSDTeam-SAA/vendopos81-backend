@@ -61,6 +61,36 @@ const createConnectedAccount = async (email: string) => {
   return { account, onboardingLink };
 };
 
+const refreshStripeAccountStatus = async (email: string) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  const account = await stripe.accounts.retrieve(
+    user.stripeAccountId as string,
+  );
+
+  await User.updateOne(
+    { email },
+    {
+      $set: {
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        stripeOnboardingCompleted:
+          account.charges_enabled && account.payouts_enabled,
+      },
+    },
+  );
+
+  return {
+    chargesEnabled: account.charges_enabled,
+    payoutsEnabled: account.payouts_enabled,
+    stripeOnboardingCompleted:
+      account.charges_enabled && account.payouts_enabled,
+  };
+};
+
 const getStripeLoginLink = async (email: string) => {
   const user = await User.findOne({ email });
 
@@ -84,6 +114,7 @@ const getStripeLoginLink = async (email: string) => {
 
 const onboardService = {
   createConnectedAccount,
+  refreshStripeAccountStatus,
   getStripeLoginLink,
 };
 

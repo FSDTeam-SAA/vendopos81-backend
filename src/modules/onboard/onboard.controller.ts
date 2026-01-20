@@ -15,6 +15,18 @@ const createOnboard = catchAsync(async (req, res) => {
   });
 });
 
+const refreshStripeAccountStatus = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const result = await onboardService.refreshStripeAccountStatus(email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Account status refreshed successfully",
+    data: result,
+  });
+});
+
 const getStripeLoginLink = catchAsync(async (req, res) => {
   const { email } = req.user;
   const result = await onboardService.getStripeLoginLink(email);
@@ -29,6 +41,7 @@ const getStripeLoginLink = catchAsync(async (req, res) => {
 
 const onboardController = {
   createOnboard,
+  refreshStripeAccountStatus,
   getStripeLoginLink,
 };
 
