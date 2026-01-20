@@ -11,19 +11,19 @@ router.get("/my-orders", auth(USER_ROLE.CUSTOMER), orderController.getMyOrders);
 router.get(
   "/all-orders",
   //   auth(USER_ROLE.ADMIN),
-  orderController.getAllOrdersForAdmin
+  orderController.getAllOrdersForAdmin,
 );
 
 router.get(
   "/supplier-orders",
   auth(USER_ROLE.SUPPLIER),
-  orderController.getOrderFormSupplier
+  orderController.getOrderFormSupplier,
 );
 
 router.put(
   "/cancel/:id",
   auth(USER_ROLE.CUSTOMER),
-  orderController.cancelMyOrder
+  orderController.cancelMyOrder,
 );
 
 const orderRouter = router;

@@ -128,9 +128,9 @@ const createOrder = async (payload: any, email: string) => {
     );
 
     // !Clear cart if needed____________________________
-    if (payload.orderType === "addToCart") {
-      await Cart.deleteMany({ userId: user._id }).session(session);
-    }
+    // if (payload.orderType === "addToCart") {
+    //   await Cart.deleteMany({ userId: user._id }).session(session);
+    // }
 
     await session.commitTransaction();
     session.endSession();
@@ -496,120 +496,113 @@ const getOrderFormSupplier = async (email: string, query: any) => {
 };
 
 const cancelMyOrder = async (orderId: string, email: string) => {
-  // ========================
-  // 1️⃣ USER CHECK
-  // ========================
-  const user = await User.findOne({ email });
-  if (!user) {
-    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
-  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  // ========================
-  // 2️⃣ ORDER CHECK
-  // ========================
-  const order: any = await Order.findById(orderId)
-    .populate("userId")
-    .populate("items.productId")
-    .populate("items.variantId")
-    .populate("items.wholesaleId")
-    .lean();
+  try {
+    // 1️⃣ User check
+    const user = await User.findOne({ email }).session(session);
+    if (!user) {
+      throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+    }
 
-  if (!order) {
-    throw new AppError("Your order does not exist", StatusCodes.NOT_FOUND);
-  }
+    // 2️⃣ Fetch order
+    const order: any = await Order.findById(orderId)
+      .populate("items.productId")
+      .session(session);
 
-  // ========================
-  // 3️⃣ VALIDATION
-  // ========================
-  if (order.paymentType !== "cod") {
-    throw new AppError(
-      "Only COD orders can be cancelled",
-      StatusCodes.BAD_REQUEST,
-    );
-  }
+    if (!order) {
+      throw new AppError("Your order does not exist", StatusCodes.NOT_FOUND);
+    }
 
-  if (order.orderStatus !== "pending") {
-    throw new AppError(
-      "Only pending orders can be cancelled",
-      StatusCodes.BAD_REQUEST,
-    );
-  }
-
-  if (order.userId._id.toString() !== user._id.toString()) {
-    throw new AppError(
-      "You can only cancel your own orders",
-      StatusCodes.BAD_REQUEST,
-    );
-  }
-
-  // ========================
-  // 4️⃣ RESTOCK (ATOMIC WAY)
-  // ========================
-  for (const item of order.items) {
-    const productId = item.productId._id;
-    const qty = item.quantity;
-
-    // ✅ 4.1 PRODUCT TOTAL QUANTITY
-    await Product.updateOne({ _id: productId }, { $inc: { quantity: qty } });
-
-    // ✅ 4.2 VARIANT RESTOCK
-    if (item.variantId) {
-      await Product.updateOne(
-        { _id: productId },
-        {
-          $inc: {
-            "variants.$[v].stock": qty,
-          },
-        },
-        {
-          arrayFilters: [{ "v._id": item.variantId._id }],
-        },
+    // 3️⃣ Validation
+    if (order.paymentType !== "cod") {
+      throw new AppError(
+        "Only COD orders can be cancelled",
+        StatusCodes.BAD_REQUEST,
       );
     }
 
-    // ✅ 4.3 WHOLESALE RESTOCK
-    if (item.wholesaleId) {
-      const wholesaleId = item.wholesaleId._id;
+    if (order.orderStatus !== "pending") {
+      throw new AppError(
+        "Only pending orders can be cancelled",
+        StatusCodes.BAD_REQUEST,
+      );
+    }
 
-      // 🔹 CASE
-      if (item.wholesaleId.type === "case") {
-        await Wholesale.updateOne(
-          { _id: wholesaleId },
+    if (order.userId.toString() !== user._id.toString()) {
+      throw new AppError(
+        "You can only cancel your own orders",
+        StatusCodes.FORBIDDEN,
+      );
+    }
+
+    // 4️⃣ Restore stock for each order item
+    for (const item of order.items) {
+      const productId = new mongoose.Types.ObjectId(item.productId);
+
+      // 🔹 Variant product
+      if (item.variantId) {
+        await Product.updateOne(
           {
-            $inc: {
-              "caseItems.$[c].quantity": qty,
-            },
+            _id: productId,
+            "variants._id": new mongoose.Types.ObjectId(item.variantId),
           },
-          {
-            arrayFilters: [{ "c.productId": productId }],
-          },
+          { $inc: { "variants.$.stock": item.quantity } },
+          { session },
         );
       }
 
-      // 🔹 PALLET
-      if (item.wholesaleId.type === "pallet") {
-        await Wholesale.updateOne(
-          { _id: wholesaleId },
-          {
-            $inc: {
-              "palletItems.$[].items.$[i].totalCases": qty,
-            },
-          },
-          {
-            arrayFilters: [{ "i.productId": productId }],
-          },
-        );
+      // 🔹 Wholesale product
+      else if (item.wholesaleId) {
+        const wholesaleId = new mongoose.Types.ObjectId(item.wholesaleId);
+
+        const wholesale: any = await Wholesale.findById(wholesaleId)
+          .select("type caseItems palletItems")
+          .session(session);
+
+        if (!wholesale) continue;
+
+        // Case type wholesale
+        if (wholesale.type === "case") {
+          await Wholesale.updateOne(
+            { _id: wholesaleId, "caseItems.productId": productId },
+            { $inc: { "caseItems.$.quantity": item.quantity } },
+            { session },
+          );
+        }
+
+        // Pallet type wholesale
+        else if (wholesale.type === "pallet") {
+          // Only increase totalCases
+          await Wholesale.updateOne(
+            { _id: wholesaleId, "palletItems.items.productId": productId },
+            { $inc: { "palletItems.$[].totalCases": item.quantity } },
+            { session },
+          );
+        }
       }
     }
-  }
 
-  // ========================
-  // 5️⃣ CANCEL ORDER
-  // ========================
-  await Order.updateOne(
-    { _id: orderId, userId: user._id },
-    { $set: { orderStatus: "cancelled" } },
-  );
+    // 5️⃣ Update order status
+    await Order.updateOne(
+      { _id: order._id },
+      { $set: { orderStatus: "cancelled" } },
+      { session },
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return {
+      success: true,
+      message: "Order cancelled and stock restored successfully",
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 };
 
 const orderService = {

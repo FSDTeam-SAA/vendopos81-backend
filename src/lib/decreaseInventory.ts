@@ -11,7 +11,7 @@ export const decreaseInventory = async (
     wholesaleId?: Types.ObjectId;
     quantity: number;
   },
-  session: mongoose.ClientSession
+  session: mongoose.ClientSession,
 ) => {
   // 1️⃣ Fetch product
   const product: any = await Product.findById(item.productId).session(session);
@@ -22,7 +22,7 @@ export const decreaseInventory = async (
    */
   if (item.variantId) {
     const variant = product.variants?.find(
-      (v: any) => v._id.toString() === item.variantId!.toString()
+      (v: any) => v._id.toString() === item.variantId!.toString(),
     );
 
     if (!variant)
@@ -42,7 +42,7 @@ export const decreaseInventory = async (
    */
   if (item.wholesaleId) {
     const wholesale: any = await Wholesale.findById(item.wholesaleId).session(
-      session
+      session,
     );
 
     if (!wholesale)
@@ -51,7 +51,7 @@ export const decreaseInventory = async (
     // ===== CASE =====
     if (wholesale.type === "case") {
       const caseItem = wholesale.caseItems?.find(
-        (c: any) => c.productId.toString() === item.productId.toString()
+        (c: any) => c.productId.toString() === item.productId.toString(),
       );
 
       if (!caseItem)
@@ -74,20 +74,27 @@ export const decreaseInventory = async (
         throw new AppError("Pallet not found", StatusCodes.BAD_REQUEST);
 
       const palletItem = pallet.items?.find(
-        (i: any) => i.productId.toString() === item.productId.toString()
+        (i: any) => i.productId.toString() === item.productId.toString(),
       );
 
       if (!palletItem)
         throw new AppError(
           "Product not found in pallet",
-          StatusCodes.BAD_REQUEST
+          StatusCodes.BAD_REQUEST,
         );
 
-      if (palletItem.caseQuantity < item.quantity)
+      if (palletItem.totalCases < item.quantity)
         throw new AppError("Not enough pallet stock", StatusCodes.BAD_REQUEST);
 
-      // ✅ product-wise stock
-      palletItem.caseQuantity -= item.quantity;
+      if (palletItem.totalCases === 0) {
+        throw new AppError("Pallet stock is empty", StatusCodes.BAD_REQUEST);
+      }
+
+      // if (palletItem.caseQuantity < item.quantity)
+      //   throw new AppError("Not enough pallet stock", StatusCodes.BAD_REQUEST);
+
+      // // ✅ product-wise stock
+      // palletItem.caseQuantity -= item.quantity;
 
       // optional summary
       pallet.totalCases -= item.quantity;

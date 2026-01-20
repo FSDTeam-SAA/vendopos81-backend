@@ -32,7 +32,7 @@ const orderItemSchema = new Schema(
       min: 0,
     },
   },
-  { _id: true } // ✅ important! _id:true by default, remove _id:false
+  { _id: true } 
 );
 
 const orderSchema = new Schema<IOrder>(
@@ -70,12 +70,12 @@ const orderSchema = new Schema<IOrder>(
     items: {
       type: [orderItemSchema],
       required: true,
-      validate: {
-        validator: function (items: any[]) {
-          return items.length > 0;
-        },
-        message: "Order must contain at least one item",
-      },
+      // validate: {
+      //   validator: function (items: any[]) {
+      //     return items.length > 0;
+      //   },
+      //   message: "Order must contain at least one item",
+      // },
     },
     totalPrice: {
       type: Number,

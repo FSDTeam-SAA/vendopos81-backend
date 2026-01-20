@@ -25,7 +25,7 @@ export interface IWholesaleCaseItem {
 
 export interface IPalletItem {
   productId: Types.ObjectId;
-  caseQuantity: number;
+  // caseQuantity: number;
 }
 
 export interface IWholesalePallet {
