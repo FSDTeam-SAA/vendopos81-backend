@@ -11,5 +11,11 @@ router.post(
   onboardController.createOnboard,
 );
 
+router.get(
+  "/get-stripe-link",
+  auth(USER_ROLE.SUPPLIER),
+  onboardController.getStripeLoginLink,
+);
+
 const onboardRouter = router;
 export default onboardRouter;

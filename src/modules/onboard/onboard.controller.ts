@@ -15,8 +15,21 @@ const createOnboard = catchAsync(async (req, res) => {
   });
 });
 
+const getStripeLoginLink = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const result = await onboardService.getStripeLoginLink(email);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Login link retrieved successfully",
+    data: result,
+  });
+});
+
 const onboardController = {
   createOnboard,
+  getStripeLoginLink,
 };
 
 export default onboardController;

@@ -18,12 +18,12 @@ const createConnectedAccount = async (email: string) => {
     );
   }
 
-//   if (user.stripeAccountId) {
-//     throw new AppError(
-//       "You already have a Stripe account",
-//       StatusCodes.CONFLICT,
-//     );
-//   }
+  //   if (user.stripeAccountId) {
+  //     throw new AppError(
+  //       "You already have a Stripe account",
+  //       StatusCodes.CONFLICT,
+  //     );
+  //   }
 
   // Create Stripe Connected Account
   const account = await stripe.accounts.create({
@@ -61,8 +61,30 @@ const createConnectedAccount = async (email: string) => {
   return { account, onboardingLink };
 };
 
+const getStripeLoginLink = async (email: string) => {
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  if (!user.stripeAccountId) {
+    throw new AppError(
+      "You have not connected your Stripe account",
+      StatusCodes.CONFLICT,
+    );
+  }
+
+  const loginLink = await stripe.accounts.createLoginLink(user.stripeAccountId);
+
+  return {
+    url: loginLink.url,
+  };
+};
+
 const onboardService = {
   createConnectedAccount,
+  getStripeLoginLink,
 };
 
 export default onboardService;
