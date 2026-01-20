@@ -605,12 +605,99 @@ const cancelMyOrder = async (orderId: string, email: string) => {
   }
 };
 
+const updateOrderStatus = async (orderId: string, status: string) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const order: any = await Order.findById(orderId)
+      .populate("items.productId")
+      .session(session);
+
+    if (!order) {
+      throw new AppError("Order not found", StatusCodes.NOT_FOUND);
+    }
+
+    // ✅ If status is CANCELLED, rollback stock
+    if (status === "cancelled") {
+      // Only allow cancelling pending/confirmed orders
+      if (
+        order.orderStatus !== "pending" &&
+        order.orderStatus !== "delivered"
+      ) {
+        throw new AppError(
+          `Cannot cancel order at ${order.orderStatus} stage`,
+          StatusCodes.BAD_REQUEST,
+        );
+      }
+
+      for (const item of order.items) {
+        const productId = new mongoose.Types.ObjectId(item.productId);
+
+        // 🔹 Variant product
+        if (item.variantId) {
+          await Product.updateOne(
+            {
+              _id: productId,
+              "variants._id": new mongoose.Types.ObjectId(item.variantId),
+            },
+            { $inc: { "variants.$.stock": item.quantity } },
+            { session },
+          );
+        }
+
+        // 🔹 Wholesale product
+        else if (item.wholesaleId) {
+          const wholesaleId = new mongoose.Types.ObjectId(item.wholesaleId);
+
+          const wholesale: any = await Wholesale.findById(wholesaleId)
+            .select("type caseItems palletItems")
+            .session(session);
+
+          if (!wholesale) continue;
+
+          if (wholesale.type === "case") {
+            await Wholesale.updateOne(
+              { _id: wholesaleId, "caseItems.productId": productId },
+              { $inc: { "caseItems.$.quantity": item.quantity } },
+              { session },
+            );
+          } else if (wholesale.type === "pallet") {
+            await Wholesale.updateOne(
+              { _id: wholesaleId, "palletItems.items.productId": productId },
+              { $inc: { "palletItems.$[].totalCases": item.quantity } },
+              { session },
+            );
+          }
+        }
+      }
+    }
+
+    // ✅ Update order status
+    order.orderStatus = status;
+    await order.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return {
+      success: true,
+      message: `Order status updated to ${status} successfully`,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
 const orderService = {
   createOrder,
   getMyOrders,
   getAllOrdersForAdmin,
   getOrderFormSupplier,
   cancelMyOrder,
+  updateOrderStatus,
 };
 
 export default orderService;
