@@ -12,6 +12,12 @@ router.post(
 );
 
 router.get(
+  "/refresh",
+  auth(USER_ROLE.SUPPLIER),
+  onboardController.refreshStripeAccountStatus,
+);
+
+router.get(
   "/get-stripe-link",
   auth(USER_ROLE.SUPPLIER),
   onboardController.getStripeLoginLink,
