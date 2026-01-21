@@ -31,7 +31,7 @@ router.get(
 
 router.get(
   "/:id",
-  auth(USER_ROLE.ADMIN),
+  // auth(USER_ROLE.ADMIN),
   joinAsSupplierController.getSingleSupplier
 );
 

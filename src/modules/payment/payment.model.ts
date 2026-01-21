@@ -26,9 +26,9 @@ const paymentSchema = new Schema<IPayment>(
     stripePaymentIntentId: {
       type: String,
     },
-    paymentMethod: {
-      type: String,
-    },
+    // paymentMethod: {
+    //   type: String,
+    // },
   },
   { timestamps: true, versionKey: false },
 );
