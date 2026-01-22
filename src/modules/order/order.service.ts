@@ -3,6 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
 import { decreaseInventory } from "../../lib/decreaseInventory";
+import { getOrderOwnership } from "../../lib/validators";
 import Cart from "../cart/cart.model";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import Product from "../product/product.model";
@@ -15,21 +16,20 @@ const createOrder = async (payload: any, email: string) => {
   session.startTransaction();
 
   try {
-    // User check
     const user = await User.findOne({ email }).session(session);
     if (!user)
       throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
 
-    if (user.isVerified === false) {
+    if (!user.isVerified) {
       throw new AppError(
         "Please verify your account to place an order",
         StatusCodes.FORBIDDEN,
       );
     }
 
-    if (user.isSuspended === true) {
+    if (user.isSuspended) {
       throw new AppError(
-        "Account has been suspended.Contact support for help",
+        "Account has been suspended. Contact support for help",
         StatusCodes.FORBIDDEN,
       );
     }
@@ -37,28 +37,29 @@ const createOrder = async (payload: any, email: string) => {
     let items: any[] = [];
     let totalPrice = 0;
 
-    // ========== ORDER FROM CART ==========
+    /* ================== ORDER FROM CART ================== */
     if (payload.orderType === "addToCart") {
       const cartItems = await Cart.find({ userId: user._id })
-        .populate({ path: "productId" })
+        .populate("productId")
         .session(session);
 
-      if (!cartItems.length) throw new AppError("Cart is empty", 400);
+      if (!cartItems.length) {
+        throw new AppError("Cart is empty", 400);
+      }
 
       for (const item of cartItems) {
-        const product = item.productId as any;
+        const product: any = item.productId;
         const unitPrice = item.price;
 
         const orderItem = {
           productId: product._id,
-          supplierId: product.supplierId,
           quantity: item.quantity,
           unitPrice,
           ...(item.variantId && { variantId: item.variantId }),
           ...(item.wholesaleId && { wholesaleId: item.wholesaleId }),
+          ...getOrderOwnership(product),
         };
 
-        // Decrease stock
         await decreaseInventory(orderItem, session);
 
         items.push(orderItem);
@@ -66,11 +67,10 @@ const createOrder = async (payload: any, email: string) => {
       }
     }
 
-    // ========== SINGLE ORDER ==========
+    /* ================== SINGLE ORDER ================== */
     if (payload.orderType === "single") {
       for (const item of payload.items) {
-        const product = await Product.findById(item.productId)
-          // .populate("supplierId")
+        const product: any = await Product.findById(item.productId)
           .populate("wholesaleId")
           .session(session);
 
@@ -78,7 +78,7 @@ const createOrder = async (payload: any, email: string) => {
 
         let unitPrice = 0;
 
-        // Variant
+        // Variant price
         if (item.variantId) {
           const variant = product.variants?.find(
             (v: any) => v._id.toString() === item.variantId.toString(),
@@ -87,7 +87,7 @@ const createOrder = async (payload: any, email: string) => {
           unitPrice = variant.price;
         }
 
-        // Wholesale
+        // Wholesale price
         if (item.wholesaleId) {
           const wholesale: any = product.wholesaleId?.find(
             (w: any) => w._id.toString() === item.wholesaleId.toString(),
@@ -113,11 +113,11 @@ const createOrder = async (payload: any, email: string) => {
 
         const orderItem = {
           productId: product._id,
-          supplierId: product.supplierId,
           quantity: item.quantity,
           unitPrice,
           ...(item.variantId && { variantId: item.variantId }),
           ...(item.wholesaleId && { wholesaleId: item.wholesaleId }),
+          ...getOrderOwnership(product),
         };
 
         await decreaseInventory(orderItem, session);
@@ -127,7 +127,7 @@ const createOrder = async (payload: any, email: string) => {
       }
     }
 
-    // ========== CREATE ORDER ==========
+    /* ================== CREATE ORDER ================== */
     const order = await Order.create(
       [
         {
@@ -142,7 +142,6 @@ const createOrder = async (payload: any, email: string) => {
       { session },
     );
 
-    // !Clear cart if needed____________________________
     if (payload.orderType === "addToCart") {
       await Cart.deleteMany({ userId: user._id }).session(session);
     }
@@ -151,10 +150,10 @@ const createOrder = async (payload: any, email: string) => {
     session.endSession();
 
     return order[0];
-  } catch (err) {
+  } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    throw err;
+    throw error;
   }
 };
 

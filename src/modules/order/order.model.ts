@@ -11,7 +11,11 @@ const orderItemSchema = new Schema(
     supplierId: {
       type: Schema.Types.ObjectId,
       ref: "JoinAsSupplier",
-      required: true,
+      // required: true,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
     quantity: {
       type: Number,
@@ -32,7 +36,7 @@ const orderItemSchema = new Schema(
       min: 0,
     },
   },
-  { _id: true } 
+  { _id: true },
 );
 
 const orderSchema = new Schema<IOrder>(
@@ -98,7 +102,7 @@ const orderSchema = new Schema<IOrder>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 orderSchema.pre("save", async function (next) {

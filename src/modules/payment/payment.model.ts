@@ -7,13 +7,34 @@ const paymentSchema = new Schema<IPayment>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
     orderId: {
       type: Schema.Types.ObjectId,
       ref: "Order",
+      required: true,
+    },
+    supplierId: {
+      type: Schema.Types.ObjectId,
+      ref: "JoinAsSupplier",
+      default: null,
+    },
+    paymentType: {
+      type: String,
+      enum: ["ADMIN", "SUPPLIER"],
+      // required: true,
     },
     amount: {
       type: Number,
+      required: true,
+    },
+    adminCommission: {
+      type: Number,
+      default: 0,
+    },
+    currency: {
+      type: String,
+      default: "cad",
     },
     status: {
       type: String,
@@ -25,10 +46,8 @@ const paymentSchema = new Schema<IPayment>(
     },
     stripePaymentIntentId: {
       type: String,
+      index: true,
     },
-    // paymentMethod: {
-    //   type: String,
-    // },
   },
   { timestamps: true, versionKey: false },
 );

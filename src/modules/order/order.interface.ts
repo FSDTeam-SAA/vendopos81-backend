@@ -13,6 +13,7 @@ export interface IOrder {
   items: {
     productId: Types.ObjectId;
     supplierId: Types.ObjectId;
+    userId: Types.ObjectId;
     quantity: number;
     variantId?: Types.ObjectId;
     wholesaleId?: Types.ObjectId;

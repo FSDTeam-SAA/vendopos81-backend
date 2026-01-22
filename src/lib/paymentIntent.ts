@@ -20,3 +20,25 @@ export const calculateAmounts = (items: any[]) => {
 };
 
 
+export const splitItemsByOwner = (items: any[]) => {
+  const supplierMap: Record<string, any[]> = {};
+  const adminItems: any[] = [];
+
+  for (const item of items) {
+    if (item.supplierId) {
+      const supplierId = item.supplierId.toString();
+      if (!supplierMap[supplierId]) supplierMap[supplierId] = [];
+      supplierMap[supplierId].push(item);
+    } else {
+      // ✅ Admin product
+      adminItems.push(item);
+    }
+  }
+
+  return { supplierMap, adminItems };
+};
+
+
+export const calculateTotal = (items: any[]) => {
+  return items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+};
