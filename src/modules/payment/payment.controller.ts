@@ -15,12 +15,25 @@ const createPayment = catchAsync(async (req, res) => {
   });
 });
 
+const stripeWebhookHandler = catchAsync(async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  const result = await paymentService.stripeWebhookHandler(sig, req.body);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Stripe webhook handled successfully",
+    data: result,
+  });
+});
+
 const getAllPayments = catchAsync(async (req, res) => {});
 
 const getSinglePayment = catchAsync(async (req, res) => {});
 
 const paymentController = {
   createPayment,
+  stripeWebhookHandler,
   getAllPayments,
   getSinglePayment,
 };

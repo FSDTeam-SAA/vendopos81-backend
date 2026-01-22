@@ -11,5 +11,11 @@ router.post(
   paymentController.createPayment,
 );
 
+router.post(
+  "/webhook",
+  // No auth middleware here as Stripe needs to access this endpoint
+  paymentController.stripeWebhookHandler,
+);
+
 const paymentRouter = router;
 export default paymentRouter;
