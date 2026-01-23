@@ -126,7 +126,7 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     event = stripe.webhooks.constructEvent(
       payload,
       sig,
-      process.env.STRIPE_WEBHOOK_ADMIN_SECRET!,
+      process.env.STRIPE_WEBHOOK_ADMIN_SECRET as string,
     );
   } catch (err: any) {
     console.error("Stripe Webhook signature verification failed:", err.message);
