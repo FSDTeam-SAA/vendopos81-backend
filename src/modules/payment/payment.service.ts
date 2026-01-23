@@ -4,9 +4,6 @@ import AppError from "../../errors/AppError";
 import {
   calculateAmounts,
   calculateTotal,
-  generateInvoice,
-  handlePaymentSuccess,
-  notifySupplierAndAdmin,
   splitItemsByOwner,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
@@ -147,16 +144,15 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     console.log("Session ID:", session.id);
     console.log("Session metadata:", session.metadata);
 
-    const payment = await handlePaymentSuccess(session);
+    const payment = await Payment.findOne({
+      stripePaymentIntentId: session.payment_intent as string,
+    });
+
+    console.log("payment response", payment);
+
     if (payment) {
+      await Payment.findByIdAndUpdate(payment._id, { status: "success" });
       console.log("💰 Payment record updated successfully");
-      await notifySupplierAndAdmin(payment);
-      console.log("📤 Supplier and admin notified");
-      await generateInvoice(payment.orderId);
-      console.log("🧾 Invoice generated");
-      console.log("🎉 Webhook processing completed successfully");
-    } else {
-      console.log("⚠️ Payment record not found for this session");
     }
   } else {
     console.log("ℹ️ Event type not handled:", event.type);
