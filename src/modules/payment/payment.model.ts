@@ -19,11 +19,6 @@ const paymentSchema = new Schema<IPayment>(
       ref: "JoinAsSupplier",
       default: null,
     },
-    // paymentType: {
-    //   type: String,
-    //   enum: ["ADMIN", "SUPPLIER"],
-    //   // required: true,
-    // },
     amount: {
       type: Number,
       required: true,

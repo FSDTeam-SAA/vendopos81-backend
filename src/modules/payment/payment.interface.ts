@@ -4,7 +4,6 @@ export interface IPayment {
   userId: Types.ObjectId;
   orderId: Types.ObjectId;
   supplierId?: Types.ObjectId;
-  paymentType: "ADMIN" | "SUPPLIER";
   adminCommission?: number;
   currency?: string;
   amount: number;

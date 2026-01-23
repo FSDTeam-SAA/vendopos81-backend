@@ -19,16 +19,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const createPayment = async (payload: any, userEmail: string) => {
   const { orderId, successUrl, cancelUrl } = payload;
 
-  // ✅ Validate user & order
   const user = await validateUser(userEmail);
   const order = await validateOrderForPayment(orderId, user._id);
 
-  // ✅ Split items into admin and supplier
   const { supplierMap, adminItems } = splitItemsByOwner(order.items);
-
-  /* =========================
-     🧮 CALCULATE TOTALS
-  ========================= */
 
   const adminTotal = calculateTotal(adminItems);
   let supplierTotal = 0;
@@ -52,15 +46,11 @@ const createPayment = async (payload: any, userEmail: string) => {
 
   const grandTotal = adminTotal + supplierTotal;
 
-  /* =========================
-     💳 STRIPE CHECKOUT (ADMIN)
-  ========================= */
-
   let session;
   try {
     session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["klarna"], // Klarna enabled
+      payment_method_types: ["klarna"],
       billing_address_collection: "required",
       customer_email: user.email,
 
@@ -93,33 +83,27 @@ const createPayment = async (payload: any, userEmail: string) => {
     throw new Error("Payment session creation failed");
   }
 
-  /* =========================
-     🧾 SAVE PAYMENT
-  ========================= */
+  let paymentDoc;
 
   try {
-    await Payment.create({
+    paymentDoc = await Payment.create({
       userId: user._id,
       orderId: order._id,
       stripePaymentIntentId: session.payment_intent as string,
       amount: grandTotal,
       status: "pending",
-      paymentType: "ADMIN_FULL",
     });
   } catch (err) {
     console.error("Payment creation error:", err);
     throw new Error("Payment record creation failed");
   }
 
-  /* =========================
-     📦 SAVE SUPPLIER SETTLEMENT
-  ========================= */
-
   for (const settlement of supplierSettlements) {
     try {
       await SupplierSettlement.create({
         orderId: new mongoose.Types.ObjectId(order._id),
         supplierId: new mongoose.Types.ObjectId(settlement.supplierId),
+        paymentId: paymentDoc._id,
         totalAmount: settlement.total,
         adminCommission: settlement.adminCommission,
         payableAmount: settlement.payableToSupplier,
@@ -130,14 +114,8 @@ const createPayment = async (payload: any, userEmail: string) => {
     }
   }
 
-  /* =========================
-     🔗 RETURN SESSION URL
-  ========================= */
   return {
     checkoutUrl: session.url,
-    grandTotal,
-    adminTotal,
-    supplierTotal,
   };
 };
 

@@ -13,6 +13,10 @@ const supplierSettlementSchema = new Schema<ISupplierSettlement>(
       ref: "User",
       required: true,
     },
+    paymentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Payment",
+    },
     totalAmount: {
       type: Number,
       required: true,
