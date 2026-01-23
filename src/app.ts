@@ -1,18 +1,24 @@
 import cookieParser from "cookie-parser";
+import corsModule from "cors";
 import express, { Application } from "express";
 import globalErrorHandler from "./middleware/globalErrorHandler";
 import notFound from "./middleware/notFound";
 import { applySecurity } from "./middleware/security";
-import router from "./router";
-import corsModule from "cors";
 import { connectedAccountWebhookHandler } from "./modules/accountWebHook";
+import paymentController from "./modules/payment/payment.controller";
+import router from "./router";
 
 const app: Application = express();
 
 // applySecurity(app);
 
 // Stripe webhook route FIRST — must be raw body
-// app.post('/api/v1/webhook/main', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+// app.post(
+//   "/api/v1/webhook",
+//   express.raw({ type: "application/json" }),
+//   paymentController.stripeWebhookHandler,
+// );
+
 app.post(
   "/api/v1/onboard",
   express.raw({ type: "*/*" }),
@@ -38,7 +44,6 @@ app.use((req, res, next) => {
   express.json({ limit: "10mb" })(req, res, next);
 });
 
-
 app.use("/api/v1", router);
 
 app.get("/", (_req, res) => {
@@ -53,4 +58,3 @@ export default app;
 function cors(): any {
   throw new Error("Function not implemented.");
 }
-

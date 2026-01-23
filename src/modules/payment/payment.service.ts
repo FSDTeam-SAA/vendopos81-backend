@@ -20,7 +20,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const createPayment = async (payload: any, userEmail: string) => {
   const { orderId, successUrl, cancelUrl } = payload;
-
   const user = await validateUser(userEmail);
   const order = await validateOrderForPayment(orderId, user._id);
 
@@ -36,11 +35,13 @@ const createPayment = async (payload: any, userEmail: string) => {
 
     const adminSession = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card", "klarna"],
+      payment_method_types: ["klarna"],
+      billing_address_collection: "required",
+      customer_email: user.email,
       line_items: [
         {
           price_data: {
-            currency: "cad",
+            currency: "usd",
             product_data: {
               name: `Order #${order.orderUniqueId} - Admin Products`,
             },
@@ -87,6 +88,8 @@ const createPayment = async (payload: any, userEmail: string) => {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "klarna"],
+      billing_address_collection: "required",
+      customer_email: user.email,
       line_items: [
         {
           price_data: {
