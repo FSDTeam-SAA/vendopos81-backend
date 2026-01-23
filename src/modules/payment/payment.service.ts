@@ -4,6 +4,8 @@ import AppError from "../../errors/AppError";
 import {
   calculateAmounts,
   calculateTotal,
+  generateInvoice,
+  notifySupplierAndAdmin,
   splitItemsByOwner,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
@@ -118,7 +120,7 @@ const createPayment = async (payload: any, userEmail: string) => {
 };
 
 const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
-  console.log("🚀 Stripe webhook received!"); // Webhook hit
+  console.log("🚀 Stripe webhook received!");
 
   let event: Stripe.Event;
 
@@ -137,25 +139,108 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     throw new AppError("Webhook verification failed", StatusCodes.BAD_REQUEST);
   }
 
-  if (event.type === "checkout.session.completed") {
-    console.log("💳 Checkout session completed event received");
+  //! Handle different event types
+  switch (event.type) {
+    case "checkout.session.completed": {
+      console.log("💳 Checkout session completed event received");
 
-    const session = event.data.object as Stripe.Checkout.Session;
-    console.log("Session ID:", session.id);
-    console.log("Session metadata:", session.metadata);
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log("Session ID:", session.id);
+      console.log("Session metadata:", session.metadata);
 
-    const payment = await Payment.findOne({
-      stripePaymentIntentId: session.payment_intent as string,
-    });
+      // Payment lookup by stripeSessionId (safer for Klarna/other methods)
+      const payment = await Payment.findOne({ stripeSessionId: session.id });
 
-    console.log("payment response", payment);
+      if (payment) {
+        await Payment.findByIdAndUpdate(payment._id, { status: "success" });
+        console.log("💰 Payment record updated successfully");
 
-    if (payment) {
-      await Payment.findByIdAndUpdate(payment._id, { status: "success" });
-      console.log("💰 Payment record updated successfully");
+        await notifySupplierAndAdmin(payment);
+        await generateInvoice(payment.orderId);
+
+        console.log("✅ Post-payment logic executed");
+      } else {
+        console.log("⚠️ Payment record not found for this session");
+      }
+      break;
     }
-  } else {
-    console.log("ℹ️ Event type not handled:", event.type);
+
+    case "payment_intent.succeeded": {
+      console.log("💸 PaymentIntent succeeded");
+
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+
+      const payment = await Payment.findOne({
+        stripePaymentIntentId: paymentIntent.id,
+      });
+
+      if (payment) {
+        await Payment.findByIdAndUpdate(payment._id, { status: "success" });
+        console.log("💰 Payment status updated to success for PaymentIntent");
+
+        await notifySupplierAndAdmin(payment);
+        await generateInvoice(payment.orderId);
+      } else {
+        console.log("⚠️ Payment record not found for this PaymentIntent");
+      }
+      break;
+    }
+
+    case "payment_intent.payment_failed": {
+      console.log("❌ PaymentIntent failed");
+
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      await Payment.findOneAndUpdate(
+        { stripePaymentIntentId: paymentIntent.id },
+        { status: "failed" },
+      );
+
+      console.log("⚠️ Payment status updated to failed for PaymentIntent");
+      break;
+    }
+
+    case "charge.succeeded": {
+      console.log("💳 Charge succeeded");
+
+      const charge = event.data.object as Stripe.Charge;
+      // Optionally update payment if linked via charge.payment_intent
+      const payment = await Payment.findOne({
+        stripePaymentIntentId: charge.payment_intent as string,
+      });
+
+      if (payment) {
+        await Payment.findByIdAndUpdate(payment._id, { status: "success" });
+        console.log("💰 Payment record updated for charge.succeeded");
+      }
+      break;
+    }
+
+    case "charge.failed": {
+      console.log("❌ Charge failed");
+
+      const charge = event.data.object as Stripe.Charge;
+      await Payment.findOneAndUpdate(
+        { stripePaymentIntentId: charge.payment_intent as string },
+        { status: "failed" },
+      );
+
+      console.log("⚠️ Payment status updated to failed for charge.failed");
+      break;
+    }
+
+    case "payout.paid": {
+      console.log("💵 Payout paid to supplier/admin");
+      // Optionally update SupplierSettlement status
+      break;
+    }
+
+    case "payout.failed": {
+      console.log("⚠️ Payout failed to supplier/admin");
+      break;
+    }
+
+    default:
+      console.log("ℹ️ Event type not handled:", event.type);
   }
 
   return { received: true };
