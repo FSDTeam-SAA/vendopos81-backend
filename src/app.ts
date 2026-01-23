@@ -14,7 +14,7 @@ const app: Application = express();
 app.set("trust proxy", 1);
 // Stripe webhook route FIRST — must be raw body
 app.post(
-  "/api/v1/admin",
+  "/api/v1/stripe",
   express.raw({ type: "application/json" }),
   paymentController.stripeWebhookHandler,
 );
@@ -35,7 +35,7 @@ applySecurity(app);
 
 app.use((req, res, next) => {
   if (
-    req.originalUrl.startsWith("/api/v1/admin") ||
+    req.originalUrl.startsWith("/api/v1/stripe") ||
     req.originalUrl.startsWith("/api/v1/onboard")
   ) {
     // Skip JSON parsing, Stripe needs raw body
