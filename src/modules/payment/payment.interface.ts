@@ -10,7 +10,6 @@ export interface IPayment {
   status: "pending" | "success" | "failed";
   customTransactionId?: string;
   stripePaymentIntentId: string;
-  paymentMethod?: string;
   createdAt: Date;
   updatedAt: Date;
 }

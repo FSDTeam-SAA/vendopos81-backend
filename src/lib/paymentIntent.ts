@@ -59,8 +59,6 @@ export const handlePaymentSuccess = async (
 
   if (!payment) return null;
 
-  // payment.status = "success";
-  // await payment.save();
 
   await Payment.findByIdAndUpdate(payment._id, { status: "success" });
 

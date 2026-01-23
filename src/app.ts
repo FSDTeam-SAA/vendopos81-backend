@@ -13,11 +13,11 @@ const app: Application = express();
 // applySecurity(app);
 
 // Stripe webhook route FIRST — must be raw body
-// app.post(
-//   "/api/v1/webhook",
-//   express.raw({ type: "application/json" }),
-//   paymentController.stripeWebhookHandler,
-// );
+app.post(
+  "/api/v1/admin",
+  express.raw({ type: "application/json" }),
+  paymentController.stripeWebhookHandler,
+);
 
 app.post(
   "/api/v1/onboard",
