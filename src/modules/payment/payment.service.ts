@@ -85,6 +85,7 @@ const createPayment = async (payload: any, userEmail: string) => {
       userId: user._id,
       orderId: order._id,
       stripePaymentIntentId: session.payment_intent as string,
+      stripeCheckoutSessionId: session.id,
       amount: grandTotal,
       status: "pending",
       paymentTransferStatus: "pending",
@@ -149,7 +150,9 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       console.log("Session metadata:", session.metadata);
 
       // Payment lookup by stripeSessionId (safer for Klarna/other methods)
-      const payment = await Payment.findOne({ stripeSessionId: session.id });
+      const payment = await Payment.findOne({
+        stripeCheckoutSessionId: session.id,
+      });
 
       if (payment) {
         await Payment.findByIdAndUpdate(payment._id, { status: "success" });

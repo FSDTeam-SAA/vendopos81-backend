@@ -48,6 +48,10 @@ const paymentSchema = new Schema<IPayment>(
     customTransactionId: {
       type: String,
     },
+    stripeCheckoutSessionId: {
+      type: String,
+      index: true,
+    },
     stripePaymentIntentId: {
       type: String,
       index: true,
