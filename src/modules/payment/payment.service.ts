@@ -1,5 +1,4 @@
 import { StatusCodes } from "http-status-codes";
-import mongoose from "mongoose";
 import Stripe from "stripe";
 import AppError from "../../errors/AppError";
 import {
@@ -11,7 +10,6 @@ import {
   splitItemsByOwner,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
-import { SupplierSettlement } from "../supplierSettlement/supplierSettlement.model";
 import Payment from "./payment.model";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -83,36 +81,39 @@ const createPayment = async (payload: any, userEmail: string) => {
     throw new Error("Payment session creation failed");
   }
 
-  let paymentDoc;
-
   try {
-    paymentDoc = await Payment.create({
+    await Payment.create({
       userId: user._id,
       orderId: order._id,
       stripePaymentIntentId: session.payment_intent as string,
       amount: grandTotal,
       status: "pending",
+      paymentTransferStatus: "pending",
+      adminCommission: adminTotal,
+      supplierCommission: supplierTotal,
+      supplierId: supplierSettlements[0]?.supplierId || null,
     });
   } catch (err) {
     console.error("Payment creation error:", err);
     throw new Error("Payment record creation failed");
   }
 
-  for (const settlement of supplierSettlements) {
-    try {
-      await SupplierSettlement.create({
-        orderId: new mongoose.Types.ObjectId(order._id),
-        supplierId: new mongoose.Types.ObjectId(settlement.supplierId),
-        paymentId: paymentDoc._id,
-        totalAmount: settlement.total,
-        adminCommission: settlement.adminCommission,
-        payableAmount: settlement.payableToSupplier,
-        status: "pending",
-      });
-    } catch (err) {
-      console.error("SupplierSettlement creation error:", err);
-    }
-  }
+  // for (const settlement of supplierSettlements) {
+  //   try {
+  //     await SupplierSettlement.create({
+  //       orderId: new mongoose.Types.ObjectId(order._id),
+  //       supplierId: new mongoose.Types.ObjectId(settlement.supplierId),
+  //       paymentId: paymentDoc._id,
+  //       totalAmount: settlement.total,
+  //       adminCommission: settlement.adminCommission,
+
+  //       payableAmount: settlement.payableToSupplier,
+  //       status: "pending",
+  //     });
+  //   } catch (err) {
+  //     console.error("SupplierSettlement creation error:", err);
+  //   }
+  // }
 
   return {
     checkoutUrl: session.url,
@@ -120,6 +121,8 @@ const createPayment = async (payload: any, userEmail: string) => {
 };
 
 const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
+  console.log("🚀 Stripe webhook received!"); // Webhook hit
+
   let event: Stripe.Event;
 
   try {
@@ -128,22 +131,35 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       sig,
       process.env.STRIPE_WEBHOOK_ADMIN_SECRET as string,
     );
+    console.log("✅ Stripe webhook signature verified successfully");
   } catch (err: any) {
-    console.error("Stripe Webhook signature verification failed:", err.message);
+    console.error(
+      "❌ Stripe Webhook signature verification failed:",
+      err.message,
+    );
     throw new AppError("Webhook verification failed", StatusCodes.BAD_REQUEST);
   }
 
   if (event.type === "checkout.session.completed") {
+    console.log("💳 Checkout session completed event received");
+
     const session = event.data.object as Stripe.Checkout.Session;
+    console.log("Session ID:", session.id);
+    console.log("Session metadata:", session.metadata);
 
     const payment = await handlePaymentSuccess(session);
     if (payment) {
+      console.log("💰 Payment record updated successfully");
       await notifySupplierAndAdmin(payment);
+      console.log("📤 Supplier and admin notified");
       await generateInvoice(payment.orderId);
-      console.log("WebHook is working......");
+      console.log("🧾 Invoice generated");
+      console.log("🎉 Webhook processing completed successfully");
+    } else {
+      console.log("⚠️ Payment record not found for this session");
     }
-
-    
+  } else {
+    console.log("ℹ️ Event type not handled:", event.type);
   }
 
   return { received: true };

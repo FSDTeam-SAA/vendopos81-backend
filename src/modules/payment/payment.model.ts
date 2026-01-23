@@ -27,6 +27,10 @@ const paymentSchema = new Schema<IPayment>(
       type: Number,
       default: 0,
     },
+    supplierCommission: {
+      type: Number,
+      default: 0,
+    },
     currency: {
       type: String,
       default: "cad",
@@ -34,6 +38,11 @@ const paymentSchema = new Schema<IPayment>(
     status: {
       type: String,
       enum: ["pending", "success", "failed"],
+      default: "pending",
+    },
+    paymentTransferStatus: {
+      type: String,
+      enum: ["pending", "transferred"],
       default: "pending",
     },
     customTransactionId: {
