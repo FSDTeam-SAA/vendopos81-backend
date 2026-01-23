@@ -1,4 +1,5 @@
 import { StatusCodes } from "http-status-codes";
+import mongoose from "mongoose";
 import Stripe from "stripe";
 import AppError from "../../errors/AppError";
 import {
@@ -10,17 +11,19 @@ import {
   splitItemsByOwner,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
-import Payment from "./payment.model";
 import { SupplierSettlement } from "../supplierSettlement/supplierSettlement.model";
+import Payment from "./payment.model";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const createPayment = async (payload: any, userEmail: string) => {
   const { orderId, successUrl, cancelUrl } = payload;
 
+  // ✅ Validate user & order
   const user = await validateUser(userEmail);
   const order = await validateOrderForPayment(orderId, user._id);
 
+  // ✅ Split items into admin and supplier
   const { supplierMap, adminItems } = splitItemsByOwner(order.items);
 
   /* =========================
@@ -53,65 +56,83 @@ const createPayment = async (payload: any, userEmail: string) => {
      💳 STRIPE CHECKOUT (ADMIN)
   ========================= */
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["klarna"],
-    billing_address_collection: "required",
-    customer_email: user.email,
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["klarna"], // Klarna enabled
+      billing_address_collection: "required",
+      customer_email: user.email,
 
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `Order #${order.orderUniqueId}`,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `Order #${order.orderUniqueId}`,
+            },
+            unit_amount: Math.round(grandTotal * 100),
           },
-          unit_amount: Math.round(grandTotal * 100),
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+
+      metadata: {
+        orderId: order._id.toString(),
+        userId: user._id.toString(),
+        adminTotal: adminTotal.toString(),
+        supplierTotal: supplierTotal.toString(),
+        grandTotal: grandTotal.toString(),
       },
-    ],
 
-    metadata: {
-      orderId: order._id.toString(),
-      userId: user._id.toString(),
-      adminTotal: adminTotal.toString(),
-      supplierTotal: supplierTotal.toString(),
-      grandTotal: grandTotal.toString(),
-    },
-
-    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: cancelUrl,
-  });
+      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl,
+    });
+  } catch (err) {
+    console.error("Stripe checkout session creation error:", err);
+    throw new Error("Payment session creation failed");
+  }
 
   /* =========================
      🧾 SAVE PAYMENT
   ========================= */
 
-  await Payment.create({
-    userId: user._id,
-    orderId: order._id,
-    stripePaymentIntentId: session.payment_intent as string,
-    amount: grandTotal,
-    status: "pending",
-    paymentType: "ADMIN_FULL",
-  });
+  try {
+    await Payment.create({
+      userId: user._id,
+      orderId: order._id,
+      stripePaymentIntentId: session.payment_intent as string,
+      amount: grandTotal,
+      status: "pending",
+      paymentType: "ADMIN_FULL",
+    });
+  } catch (err) {
+    console.error("Payment creation error:", err);
+    throw new Error("Payment record creation failed");
+  }
 
   /* =========================
      📦 SAVE SUPPLIER SETTLEMENT
   ========================= */
 
   for (const settlement of supplierSettlements) {
-    await SupplierSettlement.create({
-      orderId: order._id,
-      supplierId: settlement.supplierId,
-      totalAmount: settlement.total,
-      adminCommission: settlement.adminCommission,
-      payableAmount: settlement.payableToSupplier,
-      status: "PENDING",
-    });
+    try {
+      await SupplierSettlement.create({
+        orderId: new mongoose.Types.ObjectId(order._id),
+        supplierId: new mongoose.Types.ObjectId(settlement.supplierId),
+        totalAmount: settlement.total,
+        adminCommission: settlement.adminCommission,
+        payableAmount: settlement.payableToSupplier,
+        status: "pending",
+      });
+    } catch (err) {
+      console.error("SupplierSettlement creation error:", err);
+    }
   }
 
+  /* =========================
+     🔗 RETURN SESSION URL
+  ========================= */
   return {
     checkoutUrl: session.url,
     grandTotal,
