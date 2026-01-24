@@ -20,7 +20,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
 
-  if (user.role === "supplier" && user.isSuspended) {
+  if (user.role === "supplier" && user.isSuspended === true) {
     throw new AppError(
       "Your account has been suspended. Please contact support",
       StatusCodes.BAD_REQUEST,
@@ -30,7 +30,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   // 🔹 SUPPLIER VALIDATION:
   if (user.role === "supplier" && user.stripeOnboardingCompleted === false) {
     throw new AppError(
-      "You have not completed your onboarding process",
+      "You have not completed payment onboarding process",
       StatusCodes.BAD_REQUEST,
     );
   }

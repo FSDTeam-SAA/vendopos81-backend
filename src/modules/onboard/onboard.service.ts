@@ -11,7 +11,7 @@ const createConnectedAccount = async (email: string) => {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
 
-  if (user.stripeOnboardingCompleted) {
+  if (user.stripeOnboardingCompleted === true) {
     throw new AppError(
       "You already completed the onboarding process",
       StatusCodes.CONFLICT,
@@ -43,7 +43,7 @@ const createConnectedAccount = async (email: string) => {
     },
   );
 
-  // 3️⃣ Create onboarding link (❗ correct API)
+  //  Create onboarding link (correct API)
   const onboardingLink = await stripe.accountLinks.create({
     account: account.id,
     type: "account_onboarding",
@@ -86,7 +86,6 @@ const refreshStripeAccountStatus = async (email: string) => {
 
 const getStripeLoginLink = async (email: string) => {
   const user = await User.findOne({ email });
-
   if (!user) {
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
   }
