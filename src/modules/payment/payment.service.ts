@@ -3,7 +3,9 @@ import Stripe from "stripe";
 import AppError from "../../errors/AppError";
 import {
   calculateAmounts,
+  calculateTotal,
   notifySupplierAndAdmin,
+  splitItemsByOwner,
   updateOrderStatus,
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
@@ -18,10 +20,29 @@ const createPayment = async (payload: any, userEmail: string) => {
   const user = await validateUser(userEmail);
   const order = await validateOrderForPayment(orderId, user._id);
 
-  const grandTotal = order.items.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
-    0,
-  );
+  const { supplierMap, adminItems } = splitItemsByOwner(order.items);
+
+  const adminTotal = calculateTotal(adminItems);
+  let supplierTotal = 0;
+
+  const supplierSettlements: any[] = [];
+
+  for (const supplierUserId of Object.keys(supplierMap)) {
+    const items = supplierMap[supplierUserId];
+    const { total, adminCommission } = calculateAmounts(items);
+
+    supplierTotal += total;
+
+    supplierSettlements.push({
+      supplierId: supplierUserId,
+      total,
+      adminCommission,
+      payableToSupplier: total - adminCommission,
+      status: "pending",
+    });
+  }
+
+  const grandTotal = adminTotal + supplierTotal;
 
   let session;
   try {
@@ -47,6 +68,8 @@ const createPayment = async (payload: any, userEmail: string) => {
       metadata: {
         orderId: order._id.toString(),
         userId: user._id.toString(),
+        adminTotal: adminTotal.toString(),
+        supplierTotal: supplierTotal.toString(),
         grandTotal: grandTotal.toString(),
       },
 
@@ -68,9 +91,11 @@ const createPayment = async (payload: any, userEmail: string) => {
       stripePaymentIntentId: session.payment_intent as string,
       stripeCheckoutSessionId: session.id,
       amount: grandTotal,
-      // supplierCommission: 0,
       status: "pending",
       paymentTransferStatus: "pending",
+      // adminCommission: adminTotal,
+      // supplierCommission: supplierTotal,
+      supplierId: supplierSettlements[0]?.supplierId || null,
       paymentDate: new Date(),
     });
   } catch (err) {
