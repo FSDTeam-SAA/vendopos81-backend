@@ -1,6 +1,5 @@
 import Stripe from "stripe";
 import config from "../../config";
-import AppError from "../../errors/AppError";
 import { User } from "../user/user.model";
 
 const stripe = new Stripe(config.stripe.stripeSecretKey as string);
@@ -30,8 +29,8 @@ const updateUserFromStripe = async (stripeAccountId: any) => {
 
     // console.log(`[Stripe] Synced onboarding status for ${user.email}`);
   } catch (error) {
-    // console.error(`[Stripe] Account sync failed for ${stripeAccountId}`, error);
-    throw new AppError(`Failed to sync Stripe account: ${error}`, 500);
+    console.error(`[Stripe] Account sync failed for ${stripeAccountId}`, error);
+    // throw new AppError(`Failed to sync Stripe account: ${error}`, 500);
   }
 };
 

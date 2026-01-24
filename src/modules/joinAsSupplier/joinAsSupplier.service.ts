@@ -248,7 +248,7 @@ const joinAsSupplier = async (
       });
     }
 
-    const adminUsers = await User.findOne({ role: "admin" }).session(session);
+    const adminUsers = await User.findOne({ role: "admin" });
 
     // Notify admins about new supplier request
     await createNotification({
@@ -264,7 +264,9 @@ const joinAsSupplier = async (
       accessToken,
     };
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     await session.endSession();
 
     throw new AppError(
