@@ -42,6 +42,8 @@ const createPayment = async (payload: any, userEmail: string) => {
     });
   }
 
+  console.log("total amount is there",adminTotal + supplierTotal);
+
   const grandTotal = adminTotal + supplierTotal;
 
   let session;
