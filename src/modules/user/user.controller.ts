@@ -109,6 +109,20 @@ const updateUserProfile = catchAsync(async (req, res) => {
   });
 });
 
+const getAllSuppliers = catchAsync(async (req, res) => {
+  const result = await userService.getAllSuppliers(req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "All suppliers retrieved successfully",
+    // data: result,
+    data: result.suppliers,
+    meta: result.pagination,
+    analytics: result.analytics,
+  });
+});
+
 const userController = {
   registerUser,
   verifyEmail,
@@ -118,6 +132,7 @@ const userController = {
   getMyProfile,
   updateUserProfile,
   getAdminId,
+  getAllSuppliers,
 };
 
 export default userController;

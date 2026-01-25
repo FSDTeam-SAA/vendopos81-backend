@@ -396,6 +396,101 @@ const registerDriver = async (payload: any, files: any) => {
   }
 };
 
+const getAllSuppliers = async (query: any) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const matchStage: any = { role: "supplier" };
+  if (query.isSuspended !== undefined) {
+    matchStage.isSuspended = query.isSuspended === "true";
+  }
+
+  const result = await User.aggregate([
+    { $match: matchStage },
+
+    // Join JoinAsSupplier
+    {
+      $lookup: {
+        from: "joinassuppliers",
+        localField: "_id",
+        foreignField: "userId",
+        as: "supplierData",
+      },
+    },
+    { $unwind: { path: "$supplierData", preserveNullAndEmptyArrays: true } },
+
+    // Join Products to count total products
+    {
+      $lookup: {
+        from: "products",
+        localField: "supplierData._id",
+        foreignField: "supplierId",
+        as: "products",
+      },
+    },
+    { $addFields: { totalProduct: { $size: "$products" } } },
+
+    // Sort latest first
+    { $sort: { createdAt: -1 } },
+
+    // Pagination + projection + analytics
+    {
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              firstName: 1,
+              lastName: 1,
+              email: 1,
+              createdAt: 1,
+              isSuspended: 1,
+              totalProduct: 1,
+              supplierStatus: "$supplierData.status",
+              shopName: "$supplierData.shopName",
+              brandName: "$supplierData.brandName",
+            },
+          },
+        ],
+        analytics: [
+          {
+            $group: {
+              _id: null,
+              totalSupplier: { $sum: 1 },
+              totalActive: {
+                $sum: { $cond: [{ $eq: ["$isSuspended", false] }, 1, 0] },
+              },
+              totalSuspended: {
+                $sum: { $cond: [{ $eq: ["$isSuspended", true] }, 1, 0] },
+              },
+              totalPending: {
+                $sum: {
+                  $cond: [{ $eq: ["$supplierData.status", "pending"] }, 1, 0],
+                },
+              },
+              allProduct: { $sum: "$totalProduct" }, // ✅ total all products
+            },
+          },
+        ],
+      },
+    },
+    { $project: { data: 1, analytics: { $arrayElemAt: ["$analytics", 0] } } },
+  ]);
+
+  return {
+    suppliers: result[0].data,
+    analytics: result[0].analytics,
+    pagination: {
+      page,
+      limit,
+      total: result[0].analytics.totalSupplier,
+      totalPage: Math.ceil(result[0].analytics.totalSupplier / limit),
+    },
+  };
+};
+
 const userService = {
   registerUser,
   verifyEmail,
@@ -406,6 +501,7 @@ const userService = {
   getAdminId,
   registerDriver,
   getSingleCustomer,
+  getAllSuppliers,
 };
 
 export default userService;

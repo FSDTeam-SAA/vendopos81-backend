@@ -37,6 +37,8 @@ router.post(
 );
 
 router.get("/all-users", userController.getAllUsers);
+router.get("/all-supplier", userController.getAllSuppliers);
+
 router.get(
   "/my-profile",
   auth(
