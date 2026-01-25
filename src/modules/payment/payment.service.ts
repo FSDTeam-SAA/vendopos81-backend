@@ -10,8 +10,8 @@ import {
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
-import { SupplierSettlement } from "../supplierSettlement/supplierSettlement.model";
 import { User } from "../user/user.model";
+import { SupplierSettlement } from "./../supplierSettlement/supplierSettlement.model";
 import Payment from "./payment.model";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -91,7 +91,6 @@ const createPayment = async (payload: any, userEmail: string) => {
     payableAmount: s.payableToSupplier,
     status: "pending",
   }));
-
 
   await SupplierSettlement.insertMany(settlementDocs);
 
@@ -186,7 +185,7 @@ const requestForPaymentTransfer = async (
   supplierEmail: string,
   paymentId: string,
 ) => {
-  //  Supplier validate
+  // 1️⃣ Supplier validate
   const supplier = await User.findOne({ email: supplierEmail });
   if (!supplier) {
     throw new AppError("Your account does not exist", 404);
@@ -197,35 +196,39 @@ const requestForPaymentTransfer = async (
     throw new AppError("You are not a supplier", 400);
   }
 
-  // 2 Find specific payment
-  const payment: any = await Payment.findOne({
+  // 2️⃣ Check payment success (order-level)
+  const payment = await Payment.findOne({
     _id: paymentId,
-    supplierId: isSupplier._id,
     status: "success",
-    paymentTransferStatus: "pending",
   });
 
   if (!payment) {
-    throw new AppError("No payment available for transfer", 400);
+    throw new AppError("Payment is not successful yet", 400);
   }
 
-  //  Commission calculation
-  const totalAmount = payment.amount;
-  const adminCommission = (totalAmount * ADMIN_COMMISSION_PERCENT) / 100;
-  const supplierCommission = totalAmount - adminCommission;
+  // 3️⃣ Find supplier settlement
+  const settlement = await SupplierSettlement.findOne({
+    paymentId: payment._id,
+    supplierId: supplier._id,
+    status: "pending",
+  });
 
-  //  Update payment
-  await Payment.findByIdAndUpdate(
-    payment._id,
+  if (!settlement) {
+    throw new AppError("No settlement available for transfer", 400);
+  }
+
+  // 4️⃣ Update settlement status (NO recalculation needed)
+  const updatedSettlement = await SupplierSettlement.findByIdAndUpdate(
+    settlement._id,
     {
       $set: {
-        adminCommission,
-        supplierCommission,
-        paymentTransferStatus: "requested",
+        status: "requested",
       },
     },
     { new: true },
   );
+
+  return updatedSettlement;
 };
 
 const paymentService = {
