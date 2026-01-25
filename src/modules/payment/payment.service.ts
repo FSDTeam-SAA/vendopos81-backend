@@ -175,11 +175,54 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
 };
 
 const getAllPayments = async (query: any) => {
-  const payments = await Payment.find({});
-  return payments;
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  // Filter object
+  const filter: any = {};
+
+  if (query.status) {
+    filter.status = query.status; // payment status filter
+  }
+
+  // Query payments
+  let payments = await Payment.find(filter)
+    .populate({
+      path: "userId",
+      select: "name email",
+    })
+    .populate({
+      path: "orderId",
+      select: "orderUniqueId orderStatus",
+    })
+    .select("-__v -stripeCheckoutSessionId -stripePaymentIntentId")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  // Filter by orderStatus in JS if requested
+  if (query.orderStatus) {
+    payments = payments.filter(
+      (p) => p.orderId?.orderStatus === query.orderStatus,
+    );
+  }
+
+  // Total count for pagination
+  const total = await Payment.countDocuments(filter);
+
+  return {
+    data: payments,
+    meta: {
+      page, // current page
+      limit, // page size
+      total, // total documents
+      totalPage: Math.ceil(total / limit), // total pages
+    },
+  };
 };
 
-const ADMIN_COMMISSION_PERCENT = 25;
+
 
 const requestForPaymentTransfer = async (
   supplierEmail: string,
