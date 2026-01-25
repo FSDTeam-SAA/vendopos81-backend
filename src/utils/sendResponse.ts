@@ -14,6 +14,7 @@ type TResponse<T> = {
   data?: T;
   analytics?: any;
   meta?: TMeta;
+  recentOrders?: any;
 };
 
 const sendResponse = <T>(res: Response, data: TResponse<T>) => {

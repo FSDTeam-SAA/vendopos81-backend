@@ -20,6 +20,8 @@ router.get(
   orderController.getOrderFormSupplier,
 );
 
+router.get("/:id", orderController.getSingleOrder);
+
 router.put(
   "/cancel/:id",
   auth(USER_ROLE.CUSTOMER),
