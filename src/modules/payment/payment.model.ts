@@ -14,11 +14,11 @@ const paymentSchema = new Schema<IPayment>(
       ref: "Order",
       required: true,
     },
-    supplierId: {
-      type: Schema.Types.ObjectId,
-      ref: "JoinAsSupplier",
-      default: null,
-    },
+    // supplierId: {
+    //   type: Schema.Types.ObjectId,
+    //   ref: "JoinAsSupplier",
+    //   default: null,
+    // },
     amount: {
       type: Number,
       required: true,
