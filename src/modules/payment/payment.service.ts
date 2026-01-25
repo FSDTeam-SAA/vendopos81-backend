@@ -197,40 +197,50 @@ const getAllPayments = async (query: any) => {
 
 const ADMIN_COMMISSION_PERCENT = 25;
 
-const requestForPaymentTransfer = async (supplierEmail: string) => {
+const requestForPaymentTransfer = async (
+  supplierEmail: string,
+  paymentId: string,
+) => {
+  //  Supplier validate
   const supplier = await User.findOne({ email: supplierEmail });
-  if (!supplier) throw new AppError("Your account does not exist", 404);
+  if (!supplier) {
+    throw new AppError("Your account does not exist", 404);
+  }
 
   const isSupplier = await JoinAsSupplier.findOne({ userId: supplier._id });
-  if (!isSupplier) throw new AppError("You are not a supplier", 400);
+  if (!isSupplier) {
+    throw new AppError("You are not a supplier", 400);
+  }
 
-  const payments = await Payment.find({
+  // 2️⃣ Find specific payment
+  const payment: any = await Payment.findOne({
+    _id: paymentId,
     supplierId: isSupplier._id,
     status: "success",
     paymentTransferStatus: "pending",
   });
 
-  if (!payments.length) {
-    throw new AppError("No payments available for transfer", 400);
+  if (!payment) {
+    throw new AppError("No payment available for transfer", 400);
   }
 
-  const updatedPayments = await Promise.all(
-    payments.map(async (payment: any) => {
-      const totalAmount = payment.amount;
-      const adminCommission = (totalAmount * ADMIN_COMMISSION_PERCENT) / 100;
-      const supplierCommission = totalAmount - adminCommission;
+  //  Commission calculation
+  const totalAmount = payment.amount;
+  const adminCommission = (totalAmount * ADMIN_COMMISSION_PERCENT) / 100;
+  const supplierCommission = totalAmount - adminCommission;
 
-      await Payment.findByIdAndUpdate(payment._id, {
-        $set: {
-          adminCommission,
-          supplierCommission,
-          paymentTransferStatus: "requested",
-        },
-      });
-    }),
+  //  Update payment
+  await Payment.findByIdAndUpdate(
+    payment._id,
+    {
+      $set: {
+        adminCommission,
+        supplierCommission,
+        paymentTransferStatus: "requested",
+      },
+    },
+    { new: true },
   );
-
-  return updatedPayments;
 };
 
 const paymentService = {

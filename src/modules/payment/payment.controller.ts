@@ -28,8 +28,9 @@ const stripeWebhookHandler = catchAsync(async (req, res) => {
 });
 
 const requestForPaymentTransfer = catchAsync(async (req, res) => {
+  const { id } = req.params;
   const { email } = req.user;
-  const result = await paymentService.requestForPaymentTransfer(email);
+  const result = await paymentService.requestForPaymentTransfer(email, id);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

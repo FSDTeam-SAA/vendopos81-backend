@@ -14,7 +14,7 @@ router.post(
 router.get("/get-all", paymentController.getAllPayments);
 
 router.post(
-  "/request-transfer",
+  "/request-transfer/:id",
   auth(USER_ROLE.SUPPLIER),
   paymentController.requestForPaymentTransfer,
 );
