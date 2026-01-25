@@ -60,6 +60,20 @@ const getOrderFormSupplier = catchAsync(async (req, res) => {
   });
 });
 
+const getSingleOrder = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await orderService.getSingleOrder(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Order retrieved successfully",
+    data: result,
+    // analytics: result.userSummary,
+    recentOrders: result.recentOrders,
+  });
+});
+
 const cancelMyOrder = catchAsync(async (req, res) => {
   const { email } = req.user;
   const { id } = req.params;
@@ -91,6 +105,7 @@ const orderController = {
   getMyOrders,
   getAllOrdersForAdmin,
   getOrderFormSupplier,
+  getSingleOrder,
   cancelMyOrder,
   updateOrderStatus,
 };

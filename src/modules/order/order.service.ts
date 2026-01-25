@@ -710,11 +710,64 @@ const updateOrderStatus = async (orderId: string, status: string) => {
   }
 };
 
+const getSingleOrder = async (id: string) => {
+  const order: any = await Order.findById(id)
+    .populate({
+      path: "userId",
+      select: "firstName lastName email image phone createdAt",
+    })
+    .select("-items -purchaseDate -paymentType -orderType");
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+  const userId = order.userId._id;
+  const userStats = await Order.aggregate([
+    {
+      $match: { userId: userId },
+    },
+    {
+      $group: {
+        _id: null,
+        totalOrder: { $sum: 1 },
+        totalValue: { $sum: "$totalPrice" },
+        avgValue: { $avg: "$totalPrice" },
+      },
+    },
+    {
+      $project: { _id: 0 },
+    },
+  ]);
+
+  const analytics = userStats[0] || {
+    totalOrder: 0,
+    totalValue: 0,
+    avgValue: 0,
+  };
+
+  const recentOrders = await Order.find({ userId })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .select("orderUniqueId totalPrice paymentStatus orderStatus createdAt");
+
+  return {
+    order,
+    userSummary: {
+      userId,
+      totalOrder: analytics.totalOrder,
+      totalValue: analytics.totalValue,
+      averageOrderValue: Number(analytics.avgValue.toFixed(2)),
+    },
+    recentOrders,
+  };
+};
+
 const orderService = {
   createOrder,
   getMyOrders,
   getAllOrdersForAdmin,
   getOrderFormSupplier,
+  getSingleOrder,
   cancelMyOrder,
   updateOrderStatus,
 };
