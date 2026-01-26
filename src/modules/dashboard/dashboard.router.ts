@@ -35,5 +35,11 @@ router.get(
   dashboardController.getSupplierSalesProductCharts,
 );
 
+router.get(
+  "/supplier-order-charts",
+  auth(USER_ROLE.SUPPLIER),
+  dashboardController.getSupplierOrderProductCharts,
+);
+
 const dashboardRouter = router;
 export default dashboardRouter;

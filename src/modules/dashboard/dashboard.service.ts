@@ -329,7 +329,85 @@ const getSupplierSalesProductCharts = async (email: string, year?: number) => {
   };
 };
 
+const getSupplierOrderProductCharts = async (email: string, year?: number) => {
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
 
+  // 1️⃣ Find user
+  const user = await User.findOne({ email });
+  if (!user) throw new AppError("User not found", 404);
+
+  // 2️⃣ Find supplier
+  const supplier = await JoinAsSupplier.findOne({ userId: user._id });
+  if (!supplier) throw new AppError("You are not registered as supplier", 404);
+
+  const supplierId = supplier._id;
+
+  // 3️⃣ Year filter
+  const selectedYear = year || new Date().getFullYear();
+
+  const startDate = new Date(`${selectedYear}-01-01T00:00:00.000Z`);
+  const endDate = new Date(`${selectedYear}-12-31T23:59:59.999Z`);
+
+  // 4️⃣ Aggregate orders
+  const monthlyProductSales = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $unwind: "$items",
+    },
+    {
+      $match: {
+        "items.supplierId": supplierId,
+      },
+    },
+    {
+      $group: {
+        _id: { $month: "$createdAt" },
+        totalProductSold: { $sum: "$items.quantity" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        monthNumber: "$_id",
+        totalProductSold: 1,
+      },
+    },
+  ]);
+
+  // 5️⃣ Map month names
+  const chart = months.map((month, index) => {
+    const data = monthlyProductSales.find((m) => m.monthNumber === index + 1);
+
+    return {
+      month,
+      totalProductSold: data ? data.totalProductSold : 0,
+    };
+  });
+
+  return {
+    supplierId,
+    shopName: supplier.shopName,
+    year: selectedYear,
+    chart,
+  };
+};
 
 const dashboardService = {
   adminDashboardAnalytics,
@@ -337,6 +415,7 @@ const dashboardService = {
   getRegionalSales,
   getSupplierAnalytics,
   getSupplierSalesProductCharts,
+  getSupplierOrderProductCharts,
 };
 
 export default dashboardService;
