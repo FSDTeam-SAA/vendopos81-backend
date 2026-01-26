@@ -11,7 +11,17 @@ router.get(
   dashboardController.adminDashboardAnalytics,
 );
 
-router.get("/revenue-charts", dashboardController.getRevenueCharts);
+router.get(
+  "/revenue-charts",
+  auth(USER_ROLE.ADMIN),
+  dashboardController.getRevenueCharts,
+);
+
+router.get(
+  "/regional-sales",
+  auth(USER_ROLE.ADMIN),
+  dashboardController.getRegionalSales,
+);
 
 const dashboardRouter = router;
 export default dashboardRouter;
