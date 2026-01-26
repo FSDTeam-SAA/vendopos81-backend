@@ -25,19 +25,19 @@ router.get(
 
 router.get(
   "/all-suppliers",
-  // auth(USER_ROLE.ADMIN),
+  auth(USER_ROLE.ADMIN),
   joinAsSupplierController.getAllSuppliers
 );
 
 router.get(
   "/:id",
-  // auth(USER_ROLE.ADMIN),
+  auth(USER_ROLE.ADMIN),
   joinAsSupplierController.getSingleSupplier
 );
 
 router.put(
   "/update-status/:id",
-  // auth(USER_ROLE.ADMIN),
+  auth(USER_ROLE.ADMIN),
   joinAsSupplierController.updateSupplierStatus
 );
 

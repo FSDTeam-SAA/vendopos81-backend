@@ -50,8 +50,12 @@ const adminDashboardAnalytics = async () => {
     totalSupplier,
   };
 };
+
+const getRevenueCharts = async () => {};
+
 const dashboardService = {
   adminDashboardAnalytics,
+  getRevenueCharts,
 };
 
 export default dashboardService;
