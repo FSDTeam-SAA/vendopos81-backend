@@ -50,11 +50,30 @@ const getSupplierAnalytics = catchAsync(async (req, res) => {
   });
 });
 
+const getSupplierSalesProductCharts = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const { year } = req.query;
+
+  const result = await dashboardService.getSupplierSalesProductCharts(
+    email,
+    year ? Number(year) : undefined,
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Dashboard analytics fetched successfully",
+    data: result,
+  });
+});
+
+
 const dashboardController = {
   adminDashboardAnalytics,
   getRevenueCharts,
   getRegionalSales,
   getSupplierAnalytics,
+  getSupplierSalesProductCharts,
 };
 
 export default dashboardController;

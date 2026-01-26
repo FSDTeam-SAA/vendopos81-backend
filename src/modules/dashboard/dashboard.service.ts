@@ -254,11 +254,89 @@ const getSupplierAnalytics = async (email: string) => {
   };
 };
 
+const getSupplierSalesProductCharts = async (email: string, year?: number) => {
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  // 🟢 Find user
+  const user = await User.findOne({ email });
+  if (!user) throw new AppError("User not found", 404);
+
+  // 🟢 Find supplier
+  const supplier = await JoinAsSupplier.findOne({ userId: user._id });
+  if (!supplier)
+    throw new AppError("You have not applied to be a supplier", 404);
+
+  const supplierId = supplier._id;
+
+  // 🟢 Year handling (default current year)
+  const currentYear = year || new Date().getFullYear();
+
+  const startDate = new Date(`${currentYear}-01-01T00:00:00.000Z`);
+  const endDate = new Date(`${currentYear}-12-31T23:59:59.999Z`);
+
+  // 🟢 Monthly revenue aggregation
+  const monthlyRevenue = await SupplierSettlement.aggregate([
+    {
+      $match: {
+        supplierId,
+        status: { $in: ["success", "transferred"] },
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: { $month: "$createdAt" },
+        totalRevenue: { $sum: "$payableAmount" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        monthNumber: "$_id",
+        totalRevenue: 1,
+      },
+    },
+  ]);
+
+  // 🟢 Month name mapping
+  const chart = months.map((month, index) => {
+    const data = monthlyRevenue.find((m) => m.monthNumber === index + 1);
+
+    return {
+      month,
+      totalRevenue: data ? data.totalRevenue : 0,
+    };
+  });
+
+  return {
+    supplierId,
+    shopName: supplier.shopName,
+    year: currentYear,
+    chart,
+  };
+};
+
+
+
 const dashboardService = {
   adminDashboardAnalytics,
   getDashboardCharts,
   getRegionalSales,
   getSupplierAnalytics,
+  getSupplierSalesProductCharts,
 };
 
 export default dashboardService;
