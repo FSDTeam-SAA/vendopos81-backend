@@ -3,6 +3,7 @@ import mongoose, { Types } from "mongoose";
 import AppError from "../../errors/AppError";
 import checkProductsExist from "../../lib/checkProductExist";
 import { IGetWholesaleParams } from "../../lib/globalType";
+import { createNotification } from "../../socket/notification.service";
 import Product from "../product/product.model";
 import { IWholesale } from "./wholeSale.interface";
 import Wholesale from "./wholeSale.model";
@@ -38,7 +39,7 @@ const addWholeSale = async (payload: IWholesale) => {
             "caseItems.productId": { $in: ids },
           },
           null,
-          { session }
+          { session },
         );
 
         if (exists) {
@@ -63,7 +64,7 @@ const addWholeSale = async (payload: IWholesale) => {
         }
 
         const ids = payload.palletItems.flatMap((p) =>
-          p.items.map((i) => i.productId.toString())
+          p.items.map((i) => i.productId.toString()),
         );
 
         if (new Set(ids).size !== ids.length) {
@@ -76,7 +77,7 @@ const addWholeSale = async (payload: IWholesale) => {
             "palletItems.items.productId": { $in: ids },
           },
           null,
-          { session }
+          { session },
         );
 
         if (exists) {
@@ -102,7 +103,7 @@ const addWholeSale = async (payload: IWholesale) => {
         if (!payload.fastMovingItems || payload.fastMovingItems.length === 0) {
           throw new AppError(
             "You must provide at least one fast moving item",
-            400
+            400,
           );
         }
 
@@ -111,7 +112,7 @@ const addWholeSale = async (payload: IWholesale) => {
         if (new Set(ids).size !== ids.length) {
           throw new AppError(
             "Duplicate product found in fast moving items",
-            400
+            400,
           );
         }
 
@@ -121,13 +122,13 @@ const addWholeSale = async (payload: IWholesale) => {
             "fastMovingItems.productId": { $in: ids },
           },
           null,
-          { session }
+          { session },
         );
 
         if (exists) {
           throw new AppError(
             "Product already exists in fast moving wholesale",
-            409
+            409,
           );
         }
 
@@ -160,8 +161,22 @@ const addWholeSale = async (payload: IWholesale) => {
           isCase: payload.type === "case",
         },
       },
-      { session }
+      { session },
     );
+
+    const userIds = await Product.distinct("userId", {
+      _id: { $in: productIdsToUpdate },
+    }).session(session);
+
+    // userIds is ALWAYS an array
+    for (const userId of userIds) {
+      await createNotification({
+        to: new mongoose.Types.ObjectId(userId),
+        message: `Your product has been added to ${payload.type} wholesale`,
+        type: "wholesale",
+        id: wholesaleId,
+      });
+    }
 
     await session.commitTransaction();
     session.endSession();
@@ -208,7 +223,7 @@ const getAllWholeSale = async ({
 
 const updateWholeSale = async (id: string, payload: IWholesale) => {
   throw new Error(
-    "without thinking ui i cannot do it properly. I know how i do it."
+    "without thinking ui i cannot do it properly. I know how i do it.",
   );
 };
 

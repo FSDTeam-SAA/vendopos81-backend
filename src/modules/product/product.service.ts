@@ -1,9 +1,10 @@
 /* eslint-disable prefer-const */
 import { StatusCodes } from "http-status-codes";
-import { PipelineStage } from "mongoose";
+import mongoose, { PipelineStage } from "mongoose";
 import AppError from "../../errors/AppError";
 import { buildAggregationPipeline } from "../../lib/aggregationHelpers";
 import generateShopSlug from "../../middleware/generateShopSlug";
+import { createNotification } from "../../socket/notification.service";
 import {
   deleteFromCloudinary,
   uploadToCloudinary,
@@ -145,6 +146,21 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
 
   // 🔹 CREATE PRODUCT
   const result = await Product.create(data);
+
+  const adminUsers = await User.findOne({ role: "admin" });
+
+  const creatorName =
+    user.firstName && user.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user.email;
+
+  await createNotification({
+    to: new mongoose.Types.ObjectId(adminUsers!._id),
+    message: `New product added ${result.title} by ${creatorName}`,
+    type: "product",
+    id: result._id,
+  });
+
   return result;
 };
 
