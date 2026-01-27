@@ -89,8 +89,8 @@ const cancelMyOrder = catchAsync(async (req, res) => {
 
 const updateOrderStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
-  const result = await orderService.updateOrderStatus(id, status);
+  const { email } = req.user;
+  const result = await orderService.updateOrderStatus(id, req.body, email);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

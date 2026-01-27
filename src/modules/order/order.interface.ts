@@ -8,8 +8,11 @@ export interface IOrder {
   paymentStatus: "unpaid" | "paid" | "failed";
   orderStatus:
     | "pending"
+    | "partially_shipped"
+    | "shipped"
     | "delivered"
     | "cancelled"
+    | "ready_to_ship";
   items: {
     productId: Types.ObjectId;
     supplierId: Types.ObjectId;
@@ -18,7 +21,8 @@ export interface IOrder {
     variantId?: Types.ObjectId;
     wholesaleId?: Types.ObjectId;
     unitPrice: number;
-    cartId?: Types.ObjectId; 
+    cartId?: Types.ObjectId;
+    status: "pending" | "shipped" | "delivered" | "cancelled" | "ready_to_ship";
   }[];
   totalPrice: number;
   billingInfo: {

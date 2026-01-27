@@ -63,11 +63,10 @@ export const validateSupplierForPayment = async (supplierUserId: string) => {
   return supplierUser;
 };
 
-
 export const getOrderOwnership = (product: any) => {
   if (product.addBy === "admin") {
     return {
-      userId: product.userId, // ✅ ADMIN ID
+      userId: product.userId,
     };
   }
 

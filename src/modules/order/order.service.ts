@@ -110,7 +110,6 @@ const createOrder = async (payload: any, email: string) => {
         }
 
         if (!unitPrice) throw new AppError("Cannot calculate price", 400);
-
         const orderItem = {
           productId: product._id,
           quantity: item.quantity,
@@ -480,7 +479,7 @@ const getOrderFormSupplier = async (email: string, query: any) => {
           item.supplierId &&
           item.supplierId._id.toString() === supplier._id.toString(),
       )
-      .map((item) => {
+      .map((item: any) => {
         // ✅ Type Assertion for wholesaleId
         const wholesaleObj = item.wholesaleId as any; // now TS treat as object
         const wholesale =
@@ -497,8 +496,10 @@ const getOrderFormSupplier = async (email: string, query: any) => {
           supplier: item.supplierId,
           variant: item.variantId || null,
           wholesale,
+          status: item.status,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          _id: item._id,
         };
       }),
   }));
@@ -624,84 +625,72 @@ const cancelMyOrder = async (orderId: string, email: string) => {
   }
 };
 
-const updateOrderStatus = async (orderId: string, status: string) => {
+const updateOrderStatus = async (
+  orderId: string,
+  payload: any,
+  email: string,
+) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const order: any = await Order.findById(orderId)
-      .populate("items.productId")
-      .session(session);
+    const { status, itemId } = payload;
 
-    if (!order) {
-      throw new AppError("Order not found", StatusCodes.NOT_FOUND);
+    // 1️⃣ Supplier validation
+    const user = await User.findOne({ email }).session(session);
+    if (!user) throw new AppError("Your account does not exist", 404);
+
+    const supplier = await JoinAsSupplier.findOne({ userId: user._id }).session(
+      session,
+    );
+    if (!supplier) throw new AppError("Supplier not found", 404);
+
+    // 2️⃣ Fetch order
+    const order: any = await Order.findById(orderId).session(session);
+    if (!order) throw new AppError("Order not found", 404);
+
+    // 3️⃣ Find supplier's item
+    const item = order.items.find(
+      (i: any) =>
+        i._id.toString() === itemId &&
+        i.supplierId.toString() === supplier._id.toString(),
+    );
+    if (!item)
+      throw new AppError("This item does not belong to your supplier", 403);
+
+    // 4️⃣ Online payment cannot cancel
+    if (status === "cancelled" && order.paymentType === "online") {
+      throw new AppError("Cannot cancel online paid order", 400);
     }
 
-    // ✅ If status is CANCELLED, rollback stock
-    if (status === "cancelled") {
-      // Only allow cancelling pending/confirmed orders
-      if (
-        order.orderStatus !== "pending" &&
-        order.orderStatus !== "delivered"
-      ) {
-        throw new AppError(
-          `Cannot cancel order at ${order.orderStatus} stage`,
-          StatusCodes.BAD_REQUEST,
-        );
-      }
+    // 5️⃣ Update item status
+    item.status = status;
 
-      for (const item of order.items) {
-        const productId = new mongoose.Types.ObjectId(item.productId);
+    // Optional: add deliveredAt timestamp
+    if (status === "delivered") item.deliveredAt = new Date();
 
-        // 🔹 Variant product
-        if (item.variantId) {
-          await Product.updateOne(
-            {
-              _id: productId,
-              "variants._id": new mongoose.Types.ObjectId(item.variantId),
-            },
-            { $inc: { "variants.$.stock": item.quantity } },
-            { session },
-          );
-        }
+    // 6️⃣ Auto-update orderStatus based on all items
+    const statuses = order.items.map((i: any) => i.status);
 
-        // 🔹 Wholesale product
-        else if (item.wholesaleId) {
-          const wholesaleId = new mongoose.Types.ObjectId(item.wholesaleId);
+    if (statuses.every((s: any) => s === "ready_to_ship"))
+      order.orderStatus = "ready_to_ship";
+    else if (statuses.every((s: any) => s === "shipped"))
+      order.orderStatus = "shipped";
+    else if (statuses.every((s: any) => s === "delivered"))
+      order.orderStatus = "delivered";
+    else if (statuses.every((s: any) => s === "cancelled"))
+      order.orderStatus = "cancelled";
+    else order.orderStatus = "partially_shipped";
 
-          const wholesale: any = await Wholesale.findById(wholesaleId)
-            .select("type caseItems palletItems")
-            .session(session);
-
-          if (!wholesale) continue;
-
-          if (wholesale.type === "case") {
-            await Wholesale.updateOne(
-              { _id: wholesaleId, "caseItems.productId": productId },
-              { $inc: { "caseItems.$.quantity": item.quantity } },
-              { session },
-            );
-          } else if (wholesale.type === "pallet") {
-            await Wholesale.updateOne(
-              { _id: wholesaleId, "palletItems.items.productId": productId },
-              { $inc: { "palletItems.$[].totalCases": item.quantity } },
-              { session },
-            );
-          }
-        }
-      }
-    }
-
-    // ✅ Update order status
-    order.orderStatus = status;
+    // 7️⃣ Save and commit
     await order.save({ session });
-
     await session.commitTransaction();
     session.endSession();
 
     return {
       success: true,
-      message: `Order status updated to ${status} successfully`,
+      message: `Item status updated to ${status} successfully`,
+      orderStatus: order.orderStatus,
     };
   } catch (error) {
     await session.abortTransaction();

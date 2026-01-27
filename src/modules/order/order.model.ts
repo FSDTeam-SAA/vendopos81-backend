@@ -35,6 +35,11 @@ const orderItemSchema = new Schema(
       required: true,
       min: 0,
     },
+    status: {
+      type: String,
+      enum: ["pending", "delivered", "cancelled", "shipped", "ready_to_ship"],
+      default: "pending",
+    },
   },
   { _id: true },
 );
@@ -51,6 +56,7 @@ const orderSchema = new Schema<IOrder>(
       ref: "User",
       required: true,
     },
+
     orderType: {
       type: String,
       enum: ["single", "addToCart"],
@@ -68,7 +74,14 @@ const orderSchema = new Schema<IOrder>(
     },
     orderStatus: {
       type: String,
-      enum: ["pending", "delivered", "cancelled"],
+      enum: [
+        "pending",
+        "delivered",
+        "cancelled",
+        "shipped",
+        "partially_shipped",
+        "ready_to_ship",
+      ],
       default: "pending",
     },
     items: {
