@@ -665,13 +665,10 @@ const updateOrderStatus = async (
 
     // 5️⃣ Update item status
     item.status = status;
-
-    // Optional: add deliveredAt timestamp
     if (status === "delivered") item.deliveredAt = new Date();
 
     // 6️⃣ Auto-update orderStatus based on all items
     const statuses = order.items.map((i: any) => i.status);
-
     if (statuses.every((s: any) => s === "ready_to_ship"))
       order.orderStatus = "ready_to_ship";
     else if (statuses.every((s: any) => s === "shipped"))
@@ -682,7 +679,40 @@ const updateOrderStatus = async (
       order.orderStatus = "cancelled";
     else order.orderStatus = "partially_shipped";
 
-    // 7️⃣ Save and commit
+    // 7️⃣ Update supplier stats for ALL delivered items
+    const deliveredItems = order.items.filter(
+      (i: any) => i.status === "delivered",
+    );
+
+    // Group by supplier
+    const supplierMap: Record<
+      string,
+      { totalOrders: number; totalSales: number }
+    > = {};
+
+    deliveredItems.forEach((i: any) => {
+      const supId = i.supplierId.toString();
+      if (!supplierMap[supId])
+        supplierMap[supId] = { totalOrders: 0, totalSales: 0 };
+      supplierMap[supId].totalOrders += i.quantity;
+      supplierMap[supId].totalSales += i.quantity * i.unitPrice;
+    });
+
+    // Update each supplier
+    for (const supId in supplierMap) {
+      await JoinAsSupplier.updateOne(
+        { _id: supId },
+        {
+          $inc: {
+            totalOrders: supplierMap[supId].totalOrders,
+            totalSales: supplierMap[supId].totalSales,
+          },
+        },
+        { session },
+      );
+    }
+
+    // 8️⃣ Save order & commit
     await order.save({ session });
     await session.commitTransaction();
     session.endSession();
