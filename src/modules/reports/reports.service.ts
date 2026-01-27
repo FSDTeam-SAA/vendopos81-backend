@@ -1,4 +1,7 @@
+import { StatusCodes } from "http-status-codes";
 import mongoose from "mongoose";
+import AppError from "../../errors/AppError";
+import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
 import { User } from "../user/user.model";
 
 const getTopBuyers = async () => {
@@ -113,9 +116,43 @@ const getSingleTopRatedBuyer = async (userId: string) => {
   return buyer[0];
 };
 
+const getTopSuppliers = async () => {
+  try {
+    // Fetch top 5 suppliers sorted by totalSales (descending)
+    // You can change the sort field to rating or totalOrders if needed
+    const topSuppliers = await JoinAsSupplier.find({
+      isSuspended: false,
+      status: "approved",
+    })
+      .sort({ totalSales: -1 }) // highest sales first
+      .limit(5)
+      .select("shopName brandName logo totalSales totalOrders rating") // only needed fields
+      .lean();
+
+    // Transform to readable format if needed
+    const result = topSuppliers.map((s) => ({
+      id: s._id,
+      shopName: s.shopName,
+      brandName: s.brandName,
+      logo: s.logo?.url || null,
+      totalOrders: s.totalOrders,
+      totalValue: s.totalSales,
+      rating: s.rating,
+    }));
+
+    return result;
+  } catch (error) {
+    throw new AppError(
+      "Failed to fetch top suppliers",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+};
+
 const reportsService = {
   getTopBuyers,
   getSingleTopRatedBuyer,
+  getTopSuppliers,
 };
 
 export default reportsService;
