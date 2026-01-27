@@ -9,6 +9,7 @@ import {
   uploadToCloudinary,
 } from "../../utils/cloudinary";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
+import Order from "../order/order.model";
 import { User } from "../user/user.model";
 import Wholesale from "../wholeSale/wholeSale.model";
 import { IProduct } from "./product.interface";
@@ -147,17 +148,68 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   return result;
 };
 
-const getMyAddedProducts = async (email: string) => {
+const getMyAddedProducts = async (email: string, query: any) => {
   const user = await User.findOne({ email });
   if (!user)
     throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
 
-  const result = await Product.find({ userId: user._id }).populate({
-    path: "categoryId",
-    select: "region",
+  // 🔹 Pagination
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  // 🔹 Products (with pagination)
+  const products = await Product.find({ userId: user._id })
+    .populate({
+      path: "categoryId",
+      select: "region",
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  // 🔹 Total products
+  const totalProducts = await Product.countDocuments({
+    userId: user._id,
   });
-  return result;
+
+  // 🔹 Total orders (supplier products used)
+  const orderAnalytics = await Order.aggregate([
+    { $unwind: "$items" },
+    {
+      $match: {
+        "items.supplierId": user._id, // 👈 supplier reference
+      },
+    },
+    {
+      $group: {
+        _id: "$_id", // unique order
+      },
+    },
+    {
+      $count: "totalOrder",
+    },
+  ]);
+
+  const totalOrder =
+    orderAnalytics.length > 0 ? orderAnalytics[0].totalOrder : 0;
+
+  return {
+    data: products,
+    meta: {
+      page,
+      limit,
+      totalProducts,
+      totalPage: Math.ceil(totalProducts / limit),
+    },
+    analytics: {
+      totalProducts,
+      totalOrder,
+    },
+  };
 };
+
 
 const getAllProducts = async (query: any) => {
   const {

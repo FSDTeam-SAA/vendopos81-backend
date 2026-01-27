@@ -18,7 +18,7 @@ const createProduct = catchAsync(async (req, res) => {
 
 const getMyAddedProducts = catchAsync(async (req, res) => {
   const { email } = req.user;
-  const result = await productService.getMyAddedProducts(email);
+  const result = await productService.getMyAddedProducts(email, req.query);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
