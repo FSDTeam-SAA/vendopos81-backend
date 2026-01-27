@@ -16,6 +16,7 @@ import subscriptionRouter from "../modules/subscription/subscription.router";
 import userRouter from "../modules/user/user.router";
 import wholeSaleRouter from "../modules/wholeSale/wholeSale.router";
 import wishlistRouter from "../modules/wishlist/wishlist.router";
+import notificationRouter from "../modules/notification/notification.router";
 
 const router = Router();
 
@@ -91,6 +92,10 @@ const moduleRoutes = [
   {
     path: "/reports",
     route: reportsRouter,
+  },
+  {
+    path: "/notification",
+    route: notificationRouter,
   },
 ];
 

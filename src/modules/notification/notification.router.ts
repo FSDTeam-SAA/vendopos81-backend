@@ -23,8 +23,7 @@ router.get(
   getNotificationBySupplierId,
 );
 
-router.get("/admin/:userId", auth(USER_ROLE.ADMIN), getNotificationByAdminId);
-
+router.get("/admin/:userId",  getNotificationByAdminId);
 router.patch("/read/all", markAllAsRead);
 
 const notificationRouter = router;
