@@ -5,10 +5,9 @@ const router = Router();
 
 router.get("/top-buyers", reportsController.getTopBuyers);
 router.get("/top-suppliers", reportsController.getTopSuppliers);
+router.get("/top-products", reportsController.getTopRatedProducts);
 
 router.get("/:id", reportsController.getSingleTopRatedBuyer);
 
-
-// router.get("/single-supplier/:id", reportsController.getSingleTopRatedSupplier)
 const reportsRouter = router;
 export default reportsRouter;

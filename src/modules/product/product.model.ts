@@ -2,17 +2,14 @@
 import { model, Schema } from "mongoose";
 import { IProduct, IProductVariant, ISEO } from "./product.interface";
 
-const ProductVariantSchema = new Schema<IProductVariant>(
-  {
-    label: { type: String, required: true },
-    price: { type: Number, required: true },
-    stock: { type: Number, required: true },
-    unit: { type: String, required: true },
-    discount: { type: Number, default: 0 },
-    discountPrice: { type: Number, default: 0 },
-  }
-
-);
+const ProductVariantSchema = new Schema<IProductVariant>({
+  label: { type: String, required: true },
+  price: { type: Number, required: true },
+  stock: { type: Number, required: true },
+  unit: { type: String, required: true },
+  discount: { type: Number, default: 0 },
+  discountPrice: { type: Number, default: 0 },
+});
 
 const SEOSchema = new Schema<ISEO>(
   {
@@ -21,7 +18,7 @@ const SEOSchema = new Schema<ISEO>(
     // keywords: { type: [String], default: [] },
     canonicalUrl: { type: String },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const ProductSchema = new Schema<IProduct>(
@@ -73,6 +70,7 @@ const ProductSchema = new Schema<IProduct>(
     },
     averageRating: { type: Number, default: 0 },
     totalRatings: { type: Number, default: 0 },
+    totalSold: { type: Number, default: 0 },
     // totalReviews: { type: Number, default: 0 },
     status: {
       type: String,
@@ -100,7 +98,7 @@ const ProductSchema = new Schema<IProduct>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 ProductSchema.pre("save", function (next) {

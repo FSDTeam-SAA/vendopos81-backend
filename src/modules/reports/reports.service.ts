@@ -2,6 +2,7 @@ import { StatusCodes } from "http-status-codes";
 import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
+import Product from "../product/product.model";
 import { User } from "../user/user.model";
 
 const getTopBuyers = async () => {
@@ -118,18 +119,15 @@ const getSingleTopRatedBuyer = async (userId: string) => {
 
 const getTopSuppliers = async () => {
   try {
-    // Fetch top 5 suppliers sorted by totalSales (descending)
-    // You can change the sort field to rating or totalOrders if needed
     const topSuppliers = await JoinAsSupplier.find({
       isSuspended: false,
       status: "approved",
     })
-      .sort({ totalSales: -1 }) // highest sales first
+      .sort({ totalSales: -1 })
       .limit(5)
-      .select("shopName brandName logo totalSales totalOrders rating") // only needed fields
+      .select("shopName brandName logo totalSales totalOrders rating")
       .lean();
 
-    // Transform to readable format if needed
     const result = topSuppliers.map((s) => ({
       id: s._id,
       shopName: s.shopName,
@@ -149,10 +147,44 @@ const getTopSuppliers = async () => {
   }
 };
 
+const getTopRatedProducts = async (limit: number = 10) => {
+  try {
+    // 1️⃣ Fetch products with populated category
+    const products: any = await Product.find({
+      // status: "approved",
+      isAvailable: true,
+    })
+      .sort({ averageRating: -1, totalSold: -1 }) // highest rating first, then totalSold
+      .limit(limit)
+      .populate({
+        path: "categoryId",
+        select: "region title", // only get region & title
+      })
+      .select("title averageRating totalSold categoryId") // select fields for response
+      .lean();
+
+    // 2️⃣ Transform response
+    const result = products.map((p: any) => ({
+      id: p._id,
+      title: p.title,
+      categoryRegion: p.categoryId?.region || null,
+      totalSold: p.totalSold || 0,
+      rating: p.averageRating || 0,
+    }));
+
+    return result;
+  } catch (error) {
+    throw new AppError(
+      "Failed to fetch top rated products",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+};
 const reportsService = {
   getTopBuyers,
   getSingleTopRatedBuyer,
   getTopSuppliers,
+  getTopRatedProducts,
 };
 
 export default reportsService;

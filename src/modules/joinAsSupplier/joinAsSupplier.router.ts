@@ -14,39 +14,38 @@ router.post(
     { name: "documents", maxCount: 5 },
     { name: "logo", maxCount: 1 },
   ]),
-  joinAsSupplierController.joinAsSupplier
+  joinAsSupplierController.joinAsSupplier,
 );
 
 router.get(
   "/my-supplier-info",
   auth(USER_ROLE.SUPPLIER),
-  joinAsSupplierController.getMySupplierInfo
+  joinAsSupplierController.getMySupplierInfo,
 );
 
 router.get(
   "/all-suppliers",
   auth(USER_ROLE.ADMIN),
-  joinAsSupplierController.getAllSuppliers
+  joinAsSupplierController.getAllSuppliers,
 );
 
 router.get(
   "/:id",
   auth(USER_ROLE.ADMIN),
-  joinAsSupplierController.getSingleSupplier
+  joinAsSupplierController.getSingleSupplier,
 );
 
 router.put(
   "/update-status/:id",
   auth(USER_ROLE.ADMIN),
-  joinAsSupplierController.updateSupplierStatus
+  joinAsSupplierController.updateSupplierStatus,
 );
 
 router.put(
   "/suspend/:id",
   auth(USER_ROLE.ADMIN),
-  joinAsSupplierController.suspendSupplier
+  joinAsSupplierController.suspendSupplier,
 );
-
 
 router.put(
   "/update-supplier/:id",
@@ -55,13 +54,13 @@ router.put(
     { name: "documents", maxCount: 5 },
     { name: "logo", maxCount: 1 },
   ]),
-  joinAsSupplierController.updateSupplierInfo
+  joinAsSupplierController.updateSupplierInfo,
 );
 
 router.delete(
   "/delete-supplier/:id",
   auth(USER_ROLE.ADMIN),
-  joinAsSupplierController.deleteSupplier
+  joinAsSupplierController.deleteSupplier,
 );
 
 const joinAsSupplierRouter = router;

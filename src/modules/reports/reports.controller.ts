@@ -37,10 +37,22 @@ const getTopSuppliers = catchAsync(async (req, res) => {
   });
 });
 
+const getTopRatedProducts = catchAsync(async (req, res) => {
+  const result = await reportsService.getTopRatedProducts();
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Top Rated Products retrieved successfully",
+    data: result,
+  });
+});
+
 const reportsController = {
   getTopBuyers,
   getSingleTopRatedBuyer,
   getTopSuppliers,
+  getTopRatedProducts,
 };
 
 export default reportsController;

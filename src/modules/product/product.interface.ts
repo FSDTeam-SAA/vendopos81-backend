@@ -45,6 +45,7 @@ export interface IProduct {
   seo: ISEO;
   averageRating: number;
   totalRatings: number;
+  totalSold: number;
   // totalReviews: number;
   status: "pending" | "approved" | "rejected";
   isFeatured: boolean;
@@ -52,7 +53,7 @@ export interface IProduct {
   isCase: boolean;
   quantity?: number;
   isAvailable: boolean;
-  addBy: "admin" | "supplier"; 
+  addBy: "admin" | "supplier";
   wholesaleId?: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;

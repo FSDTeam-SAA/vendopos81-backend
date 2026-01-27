@@ -663,7 +663,6 @@ const updateOrderStatus = async (
       throw new AppError("Cannot cancel online paid order", 400);
     }
 
-    // 5️⃣ Update item status
     item.status = status;
     if (status === "delivered") item.deliveredAt = new Date();
 
@@ -708,6 +707,19 @@ const updateOrderStatus = async (
             totalSales: supplierMap[supId].totalSales,
           },
         },
+        { session },
+      );
+    }
+
+    // 8️⃣ Update Product totalSold for all delivered items
+    const newlyDeliveredItems = order.items.filter(
+      (i: any) => i.status === "delivered" && !i.deliveredAtUpdated,
+    );
+
+    for (const i of newlyDeliveredItems) {
+      await Product.updateOne(
+        { _id: i.productId },
+        { $inc: { totalSold: i.quantity } },
         { session },
       );
     }
