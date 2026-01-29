@@ -144,7 +144,6 @@ const getRelatedProducts = catchAsync(async (req, res) => {
   });
 });
 
-
 const updateProductStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -172,6 +171,17 @@ const updateProduct = catchAsync(async (req, res) => {
   });
 });
 
+const deleteProduct = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  await productService.deleteProduct(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Product deleted successfully",
+  });
+});
+
 const productController = {
   createProduct,
   getMyAddedProducts,
@@ -187,6 +197,7 @@ const productController = {
   getRelatedProducts,
   updateProductStatus,
   updateProduct,
+  deleteProduct,
 };
 
 export default productController;

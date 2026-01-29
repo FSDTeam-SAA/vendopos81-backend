@@ -55,5 +55,11 @@ router.put(
   productController.updateProduct,
 );
 
+router.delete(
+  "/delete-product/:id",
+  // auth(USER_ROLE.ADMIN),
+  productController.deleteProduct,
+);
+
 const productRouter = router;
 export default productRouter;

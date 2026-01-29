@@ -75,15 +75,9 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
   };
 };
 
-interface ISupplierSettlementQuery {
-  page?: number;
-  limit?: number;
-  status?: "pending" | "transferred" | "requested";
-}
-
 const getSupplierSettlement = async (
   email: string,
-  query: ISupplierSettlementQuery,
+  query: ISettlementQuery,
 ) => {
   // 🔹 Step 1: User check
   const isExistSupplier = await User.findOne({ email });
@@ -172,7 +166,6 @@ const getSupplierSettlement = async (
     },
   };
 };
-
 
 const supplierSettlementService = {
   getAllSupplierSettlements,

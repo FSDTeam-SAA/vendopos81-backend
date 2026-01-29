@@ -1183,6 +1183,33 @@ const updateProduct = async (
   return result;
 };
 
+const deleteProduct = async (id: string) => {
+  const product = await Product.findById(id);
+  if (!product) {
+    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+  }
+
+  // Step 2: Check if product exists in any active order
+  const activeStatuses = ["pending", "shipped", "ready_to_ship"];
+
+  const orderUsingProduct = await Order.findOne({
+    "items.productId": product._id,
+    orderStatus: { $in: activeStatuses },
+  });
+
+  if (orderUsingProduct) {
+    throw new AppError(
+      "Cannot delete product. It exists in active orders.",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  // Step 3: Delete product
+  await Product.findByIdAndDelete(id);
+
+  return { success: true, message: "Product deleted successfully" };
+};
+
 const productService = {
   createProduct,
   getMyAddedProducts,
@@ -1198,6 +1225,7 @@ const productService = {
   getRelatedProducts,
   updateProductStatus,
   updateProduct,
+  deleteProduct,
 };
 
 export default productService;
