@@ -12,6 +12,7 @@ import { createToken } from "../../utils/tokenGenerate";
 import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
 import JoinAsDriver from "../joinAsDriver/joinAsDriver.model";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
+import Order from "../order/order.model";
 import { IUser } from "./user.interface";
 import { User } from "./user.model";
 
@@ -502,6 +503,53 @@ const getSingleSupplier = async (id: string) => {
   return result;
 };
 
+const suspendUser = async (id: string) => {
+  const user = await User.findById(id);
+  if (!user) {
+    throw new AppError("Account not found", StatusCodes.NOT_FOUND);
+  }
+
+  // Step 2: Admin cannot be suspended
+  if (user.role === "admin") {
+    throw new AppError(
+      "Admin account cannot be suspended",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  // 👉 Step 3: If currently NOT suspended, we are going to suspend
+  if (!user.isSuspended) {
+    const blockingOrderStatuses = [
+      "pending",
+      "shipped",
+      "ready_to_ship",
+      "processing",
+    ];
+
+    const hasActiveOrder = await Order.exists({
+      userId: user._id,
+      orderStatus: { $in: blockingOrderStatuses },
+    });
+
+    if (hasActiveOrder) {
+      throw new AppError(
+        "User has active orders. Complete delivery before suspension.",
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+  }
+
+  // Step 4: Toggle suspension
+  const updatedUser = await User.findByIdAndUpdate(
+    id,
+    { isSuspended: !user.isSuspended },
+    { new: true },
+  );
+
+  return updatedUser;
+};
+
+
 const userService = {
   registerUser,
   verifyEmail,
@@ -514,6 +562,7 @@ const userService = {
   getSingleCustomer,
   getAllSuppliers,
   getSingleSupplier,
+  suspendUser,
 };
 
 export default userService;

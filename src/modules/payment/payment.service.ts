@@ -24,7 +24,6 @@ const createPayment = async (payload: any, userEmail: string) => {
   const order = await validateOrderForPayment(orderId, user._id);
 
   const { supplierMap, adminItems } = splitItemsByOwner(order.items);
-
   const adminTotal = calculateTotal(adminItems);
   let supplierTotal = 0;
 
@@ -45,7 +44,6 @@ const createPayment = async (payload: any, userEmail: string) => {
   }
 
   const grandTotal = adminTotal + supplierTotal;
-  // console.log("FRONT_END_URL =>", process.env.FRONT_END_URL);
 
   // 🔹 Stripe session
   const session = await stripe.checkout.sessions.create({

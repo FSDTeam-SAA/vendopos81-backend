@@ -76,5 +76,7 @@ router.get(
 router.get("/:id", userController.getSingleCustomer);
 router.get("/supplier/:id", userController.getSingleSupplier);
 
+router.put("/suspend/:id", auth(USER_ROLE.ADMIN), userController.suspendUser);
+
 const userRouter = router;
 export default userRouter;

@@ -135,6 +135,18 @@ const getSingleSupplier = catchAsync(async (req, res) => {
   });
 });
 
+const suspendUser = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await userService.suspendUser(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "User suspended successfully",
+    data: result,
+  });
+});
+
 const userController = {
   registerUser,
   verifyEmail,
@@ -146,6 +158,7 @@ const userController = {
   getAdminId,
   getAllSuppliers,
   getSingleSupplier,
+  suspendUser,
 };
 
 export default userController;
