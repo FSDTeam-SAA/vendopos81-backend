@@ -565,6 +565,50 @@ const deletedSuspendedUser = async (id: string) => {
   await User.findByIdAndDelete(id);
 };
 
+const suspendSupplier = async (id: string) => {
+  // Step 1: user check
+  const user = await User.findById(id);
+  if (!user) {
+    throw new AppError("Supplier account not found", StatusCodes.NOT_FOUND);
+  }
+
+  // Step 2: supplier profile
+  const supplier = await JoinAsSupplier.findOne({ userId: id });
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  // Step 3: block suspension if supplier has active items
+  const hasActiveOrders = await Order.exists({
+    items: {
+      $elemMatch: {
+        supplierId: supplier._id,
+        status: { $in: ["pending", "ready_to_ship", "shipped"] },
+      },
+    },
+  });
+
+  if (hasActiveOrders) {
+    throw new AppError(
+      "Supplier has active orders. Suspension is allowed only after delivery completion.",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  // Step 4: toggle suspension
+  await User.findByIdAndUpdate(
+    id,
+    { isSuspended: !user.isSuspended },
+    { new: true },
+  );
+
+  await JoinAsSupplier.findOneAndUpdate(
+    { userId: id },
+    { isSuspended: !supplier.isSuspended },
+    { new: true },
+  );
+};
+
 const userService = {
   registerUser,
   verifyEmail,
@@ -579,6 +623,7 @@ const userService = {
   getSingleSupplier,
   suspendUser,
   deletedSuspendedUser,
+  suspendSupplier,
 };
 
 export default userService;

@@ -75,8 +75,12 @@ router.get(
 
 router.get("/:id", userController.getSingleCustomer);
 router.get("/supplier/:id", userController.getSingleSupplier);
-
 router.put("/suspend/:id", auth(USER_ROLE.ADMIN), userController.suspendUser);
+router.put(
+  "/suspend-supplier/:id",
+  auth(USER_ROLE.ADMIN),
+  userController.suspendSupplier,
+);
 router.delete(
   "/delete/:id",
   auth(USER_ROLE.ADMIN),
