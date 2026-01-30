@@ -53,14 +53,24 @@ const getAllPayments = catchAsync(async (req, res) => {
   });
 });
 
-const getSinglePayment = catchAsync(async (req, res) => {});
+const transferPayment = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await paymentService.transferPayment(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Payment transferred successfully",
+    data: result,
+  });
+});
 
 const paymentController = {
   createPayment,
   stripeWebhookHandler,
   getAllPayments,
-  getSinglePayment,
   requestForPaymentTransfer,
+  transferPayment,
 };
 
 export default paymentController;

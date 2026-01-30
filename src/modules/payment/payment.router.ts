@@ -19,5 +19,7 @@ router.post(
   paymentController.requestForPaymentTransfer,
 );
 
+router.post("/transfer/:id", paymentController.transferPayment);
+
 const paymentRouter = router;
 export default paymentRouter;

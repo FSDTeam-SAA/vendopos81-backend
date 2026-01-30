@@ -10,6 +10,7 @@ import {
 } from "../../lib/paymentIntent";
 import { validateOrderForPayment, validateUser } from "../../lib/validators";
 import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
+import Order from "../order/order.model";
 import { User } from "../user/user.model";
 import { SupplierSettlement } from "./../supplierSettlement/supplierSettlement.model";
 import Payment from "./payment.model";
@@ -305,11 +306,74 @@ const requestForPaymentTransfer = async (
   return updatedSettlement;
 };
 
+const transferPayment = async (id: string) => {
+  // 1️⃣ Settlement
+  const settlement = await SupplierSettlement.findById(id);
+  if (!settlement) {
+    throw new AppError("Settlement not found", StatusCodes.NOT_FOUND);
+  }
+
+  if (settlement.status !== "pending") {
+    throw new AppError("Settlement is not pending", StatusCodes.BAD_REQUEST);
+  }
+
+  // 2️⃣ Payment
+  const payment = await Payment.findById(settlement.paymentId);
+  if (!payment || payment.status !== "success") {
+    throw new AppError("Payment is not successful", StatusCodes.BAD_REQUEST);
+  }
+
+  // 3️⃣ Order
+  const order = await Order.findById(payment.orderId);
+  if (!order || order.paymentStatus !== "paid") {
+    throw new AppError("Order is not paid", StatusCodes.BAD_REQUEST);
+  }
+
+  // 4️⃣ Supplier User
+  const supplier = await User.findById(settlement.supplierId);
+  if (!supplier) {
+    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  }
+
+  if (!supplier.stripeAccountId || !supplier.stripeOnboardingCompleted) {
+    throw new AppError(
+      "Supplier not connected with Stripe",
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  // 5️⃣ Stripe Transfer
+  const transfer = await stripe.transfers.create({
+    amount: Math.round(settlement.payableAmount * 100), // cents
+    currency: "usd",
+    destination: supplier.stripeAccountId,
+    metadata: {
+      orderId: order._id.toString(),
+      settlementId: settlement._id.toString(),
+    },
+  });
+
+  // 6️⃣ Update Settlement
+  await SupplierSettlement.findByIdAndUpdate(settlement._id, {
+    $set: {
+      status: "completed",
+      stripeTransferId: transfer.id,
+    },
+  });
+
+  return {
+    success: true,
+    message: "Payment transferred to supplier successfully",
+    transferId: transfer.id,
+  };
+};
+
 const paymentService = {
   createPayment,
   stripeWebhookHandler,
   getAllPayments,
   requestForPaymentTransfer,
+  transferPayment,
 };
 
 export default paymentService;
