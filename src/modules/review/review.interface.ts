@@ -7,6 +7,7 @@ export interface IReview {
   rating: number;
   comment: string;
   status: "pending" | "approved" | "rejected";
+  isReviewAdded: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -269,7 +269,7 @@ const getAdminId = async () => {
 
 const getSingleCustomer = async (id: string) => {
   const result = await User.findById(id).select(
-    "firstName lastName email role isSuspended image createdAt address phone location postalCode street",
+    "firstName lastName email role  isSuspended image createdAt address phone location postalCode street",
   );
   return result;
 };

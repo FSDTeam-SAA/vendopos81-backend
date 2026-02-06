@@ -30,8 +30,12 @@ const reviewModel = new Schema<IReview>(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    isReviewAdded: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true, versionKey: false }
+  { timestamps: true, versionKey: false },
 );
 
 const Review = model<IReview>("Review", reviewModel);

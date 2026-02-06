@@ -196,17 +196,31 @@ const getAllWholeSale = async ({
 }: IGetWholesaleParams) => {
   const filter: any = {};
 
-  // 🔍 Type filter
   if (type) {
     filter.type = type;
   }
 
-  throw new Error("Not implemented this one right now i think that...");
-
   const skip = (page - 1) * limit;
 
   const [data, total] = await Promise.all([
-    Wholesale.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Wholesale.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate([
+        {
+          path: "palletItems.items.productId",
+          select: "title  images  categoryId supplierId",
+        },
+        {
+          path: "fastMovingItems.productId",
+          select: "title  images  categoryId supplierId",
+        },
+        {
+          path: "caseItems.productId",
+          select: "title  images  categoryId supplierId",
+        },
+      ]),
     Wholesale.countDocuments(filter),
   ]);
 

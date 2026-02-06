@@ -34,6 +34,7 @@ const createReview = async (payload: IReview, email: string) => {
 
   const result = await Review.create({
     ...payload,
+    isReviewAdded: true,
     userId: user._id,
   });
 
@@ -163,7 +164,7 @@ const getReviewByProduct = async (productId: string) => {
       select: "title productType productName supplierId",
       populate: {
         path: "supplierId",
-        select: "shopName", 
+        select: "shopName",
       },
     });
   return result;
