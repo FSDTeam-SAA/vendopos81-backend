@@ -28,8 +28,13 @@ const createCategory = catchAsync(async (req, res) => {
 const getCategories = catchAsync(async (req, res) => {
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 10;
+  const region = req.query.region as string | undefined;
 
-  const result = await categoryService.getCategories(page, limit);
+  const result = await categoryService.getCategories({
+    page,
+    limit,
+    region,
+  });
 
   sendResponse(res, {
     statusCode: 200,
@@ -39,6 +44,7 @@ const getCategories = catchAsync(async (req, res) => {
     meta: result.meta,
   });
 });
+
 
 const updateCategory = catchAsync(async (req, res) => {
   const { id } = req.params;

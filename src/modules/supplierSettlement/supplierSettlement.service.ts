@@ -114,7 +114,7 @@ const getSupplierSettlement = async (
     .populate({
       path: "orderId",
       model: Order,
-      select: "orderNumber totalAmount orderStatus paymentStatus",
+      select: "orderNumber orderUniqueId totalAmount orderStatus paymentStatus",
     })
     .populate({
       path: "supplierId",

@@ -85,12 +85,28 @@ const createCategory = async (
   return result;
 };
 
-const getCategories = async (page: number, limit: number) => {
+interface IGetCategoriesParams {
+  page: number;
+  limit: number;
+  region?: string;
+}
+
+const getCategories = async ({ page, limit, region }: IGetCategoriesParams) => {
   const skip = (page - 1) * limit;
 
+  const filter: Record<string, any> = {};
+
+  // ✅ region filter
+  if (region) {
+    filter.region = region;
+    // OR (case-insensitive):
+    // filter.region = { $regex: new RegExp(`^${region}$`, "i") };
+  }
+
   const [data, total] = await Promise.all([
-    category.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
-    category.countDocuments(),
+    category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+
+    category.countDocuments(filter),
   ]);
 
   const totalPage = Math.ceil(total / limit);
@@ -105,6 +121,7 @@ const getCategories = async (page: number, limit: number) => {
     },
   };
 };
+
 
 const updateCategory = async (
   id: string,

@@ -1,13 +1,13 @@
 import { StatusCodes } from "http-status-codes";
+import config from "../../config";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
-import config from "../../config";
-import authService from "./auth.service";
 import userService from "../user/user.service";
+import authService from "./auth.service";
 
 const login = catchAsync(async (req, res) => {
   const result = await authService.login(req.body);
-  const { refreshToken, accessToken, user } = result;
+  const { refreshToken } = result;
 
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
@@ -97,7 +97,6 @@ const changePassword = catchAsync(async (req, res) => {
   });
 });
 
-
 const registerDriver = catchAsync(async (req, res) => {
   // Logic to handle multipart/form-data (req.body + req.files)
   const result = await userService.registerDriver(req.body, req.files);
@@ -118,7 +117,7 @@ const authController = {
   verifyOtp,
   resetPassword,
   changePassword,
-  registerDriver
+  registerDriver,
 };
 
 export default authController;
