@@ -39,7 +39,7 @@ const ProductSchema = new Schema<IProduct>(
       index: true,
     },
     title: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true },
+    // slug: { type: String, required: true, unique: true },
     shortDescription: { type: String, required: true },
     description: { type: String, required: true },
     images: [

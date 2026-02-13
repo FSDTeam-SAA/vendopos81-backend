@@ -82,7 +82,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   };
 
   // 🔹 SLUG
-  const slug = generateShopSlug(payload.title);
+  // const slug = generateShopSlug(payload.title);
 
   // 5️⃣ VARIANT PROCESSING
   let variants = (payload.variants || []).map((v) => {
@@ -104,15 +104,13 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   let showOnlyDiscount = 0;
 
   if (variants.length > 0) {
-    // 🔹 যদি কোনো variant-এ discount থাকে
     const discountedVariant = variants.find((v) => v.discount! > 0);
 
     if (discountedVariant) {
-      priceFrom = discountedVariant.price; // মূল দাম
-      discountPriceFrom = discountedVariant.discountPrice!; // discount price
-      showOnlyDiscount = discountedVariant.discount!; // discount %
+      priceFrom = discountedVariant.price;
+      discountPriceFrom = discountedVariant.discountPrice!;
+      showOnlyDiscount = discountedVariant.discount!;
     } else {
-      // 🔹 কোনো discount না থাকলে lowest price নাও
       const lowestVariant = variants[0];
       priceFrom = lowestVariant.price;
       discountPriceFrom = 0;
@@ -127,7 +125,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     variants,
     userId: user._id,
     supplierId: user.role === "supplier" ? isSupplierExist!._id : null,
-    slug,
+    // slug,
     seo: seoData,
     priceFrom,
     discountPriceFrom,
@@ -154,7 +152,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   });
 
   return result;
-};;
+};
 
 const getMyAddedProducts = async (email: string, query: any) => {
   const user = await User.findOne({ email });
