@@ -281,12 +281,14 @@ const getCategoryRegion = async () => {
       $group: {
         _id: "$region",
         docId: { $first: "$_id" },
+        regionImage: { $first: "$regionImage" },
       },
     },
     {
       $project: {
         _id: "$docId",
         region: "$_id",
+        regionImage: 1,
       },
     },
   ]);
