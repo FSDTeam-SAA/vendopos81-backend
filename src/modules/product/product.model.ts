@@ -66,7 +66,7 @@ const ProductSchema = new Schema<IProduct>(
     isVendorBrand: { type: Boolean, default: false },
     seo: {
       type: SEOSchema,
-      required: true,
+      // required: true,
     },
     averageRating: { type: Number, default: 0 },
     totalRatings: { type: Number, default: 0 },
