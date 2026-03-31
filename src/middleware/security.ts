@@ -24,7 +24,7 @@ export const loginLimiter = rateLimit({
 const corsOptions = {
   origin: [
     "http://localhost:3000",
-    "http://localhost:3001",
+    "https://vendofood.com",
     "https://vendopos81-website-mu.vercel.app",
     "https://vendopos81-dashboard-ten.vercel.app",
     "https://vendopos-supplier-dashboard-three.vercel.app",
