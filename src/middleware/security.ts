@@ -6,8 +6,8 @@ import helmet from "helmet";
 import hpp from "hpp";
 
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 150,
+  windowMs: 20 * 60 * 1000,
+  max: 2500,
   standardHeaders: true,
   legacyHeaders: false,
   message: "Too many requests, try again later.",
@@ -24,6 +24,7 @@ export const loginLimiter = rateLimit({
 const corsOptions = {
   origin: [
     "http://localhost:3000",
+    "http://localhost:3001",
     "https://vendofood.com",
     "https://admin.vendofood.com",
     "https://supplier.vendofood.com",
