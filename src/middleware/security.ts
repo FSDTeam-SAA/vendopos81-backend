@@ -25,6 +25,8 @@ const corsOptions = {
   origin: [
     "http://localhost:3000",
     "https://vendofood.com",
+    "https://admin.vendofood.com",
+    "https://supplier.vendofood.com",
     "https://vendopos81-website-mu.vercel.app",
     "https://vendopos81-dashboard-ten.vercel.app",
     "https://vendopos-supplier-dashboard-three.vercel.app",
@@ -40,7 +42,7 @@ export const applySecurity = (app: Application) => {
     helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: true,
-    })
+    }),
   );
   app.use(helmet.frameguard({ action: "deny" }));
   app.use(helmet.noSniff());
@@ -51,7 +53,7 @@ export const applySecurity = (app: Application) => {
   app.use(
     hpp({
       whitelist: [],
-    })
+    }),
   );
   app.use(compression());
 
