@@ -8,29 +8,47 @@ import { verifyToken } from "../utils/tokenGenerate";
 const auth = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      const extractedToken = req.headers.authorization;
-      const token = extractedToken?.split(" ")[1];
+      const authHeader = req.headers.authorization;
 
-      if (!token) {
-        throw new AppError("Invalid token", StatusCodes.UNAUTHORIZED);
+      // 🔴 Step 1: Check header exists
+      if (!authHeader) {
+        throw new AppError(
+          "Authorization header missing",
+          StatusCodes.UNAUTHORIZED,
+        );
       }
 
-      // 1. Verify the token
-      const verifyUserData = verifyToken(token, config.JWT_SECRET as string);
+      // 🔴 Step 2: Check Bearer format
+      if (!authHeader.startsWith("Bearer ")) {
+        throw new AppError("Invalid token format", StatusCodes.UNAUTHORIZED);
+      }
 
-      req.user = verifyUserData;
+      // 🔴 Step 3: Extract token
+      const token = authHeader.split(" ")[1];
 
-      // 2. Check Role Authorization
-      if (roles.length && !roles.includes(verifyUserData.role)) {
-        throw new AppError("You are not authorized!", StatusCodes.UNAUTHORIZED);
+      if (!token) {
+        throw new AppError("Token missing", StatusCodes.UNAUTHORIZED);
+      }
+
+      // 🔴 Step 4: Verify token
+      const decoded = verifyToken(token, config.JWT_SECRET as string);
+
+      // Attach user
+      req.user = decoded;
+
+      // 🔴 Step 5: Role check
+      if (roles.length && !roles.includes((decoded as any).role)) {
+        throw new AppError("You are not authorized!", StatusCodes.FORBIDDEN);
       }
 
       next();
     } catch (error: any) {
-      // --- DEBUG ERROR LOG ---
-      console.error("FULL AUTH ERROR:", error);
+      console.error("FULL AUTH ERROR:", error.message);
 
-      // 3. Use next(error) instead of throw
+      if (error.message === "Invalid or expired token") {
+        return next(new AppError("Invalid token", StatusCodes.UNAUTHORIZED));
+      }
+
       if (error instanceof AppError) {
         return next(error);
       }
@@ -43,11 +61,15 @@ const auth = (...roles: string[]) => {
 
 export default auth;
 
-export const optionalAuth = (req: Request, res: Response, next: NextFunction) => {
+export const optionalAuth = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return next(); // guest user allowed
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next();
   }
 
   try {
@@ -55,7 +77,7 @@ export const optionalAuth = (req: Request, res: Response, next: NextFunction) =>
     const decoded = verifyToken(token, config.JWT_SECRET as string);
     req.user = decoded;
   } catch (err) {
-    // invalid token → treat as guest
+    // ignore invalid token → treat as guest
   }
 
   next();
