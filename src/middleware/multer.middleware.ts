@@ -18,7 +18,8 @@ export const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, 
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|pdf|png|mp4|avi|mov|avif|webp/;
+    const filetypes =
+      /jpeg|jpg|pdf|png|mp4|avi|mov|avif|webp|doc|docx|mp3|mpeg|wav|m4a|xls|xlsx|ppt|pptx/;
 
     const mimetype = filetypes.test(file.mimetype);
     const extname = filetypes.test(
