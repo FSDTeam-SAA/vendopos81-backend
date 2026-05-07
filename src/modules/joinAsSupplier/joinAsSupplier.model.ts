@@ -1,12 +1,12 @@
-import { model, Schema } from "mongoose";
-import { applyEncryption } from "../../middleware/encryptionMiddleware";
-import { IJoinAsSupplier } from "./joinAsSupplier.interface";
+import { model, Schema } from 'mongoose';
+import { applyEncryption } from '../../middleware/encryptionMiddleware';
+import { IJoinAsSupplier } from './joinAsSupplier.interface';
 
 const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
     shopName: { type: String, required: true, trim: true },
     brandName: { type: String, required: true, trim: true },
@@ -20,15 +20,14 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
     description: { type: String, required: true, trim: true },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
       index: true,
     },
     email: { type: String, required: true, index: true },
     reasonForRejection: { type: String },
     warehouseLocation: { type: String, required: true },
     address: { type: String, required: true },
-    location: { type: String, required: true },
     street: { type: String, required: true },
     postalCode: { type: String, required: true },
     logo: {
@@ -49,20 +48,17 @@ const JoinAsSupplierSchema = new Schema<IJoinAsSupplier>(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 applyEncryption(JoinAsSupplierSchema, [
-  "phone",
-  "address",
-  "warehouseLocation",
-  "city",
-  "state",
-  "zipCode",
+  'phone',
+  'address',
+  'warehouseLocation',
+  'city',
+  'state',
+  'zipCode',
 ]);
 
-const JoinAsSupplier = model<IJoinAsSupplier>(
-  "JoinAsSupplier",
-  JoinAsSupplierSchema
-);
+const JoinAsSupplier = model<IJoinAsSupplier>('JoinAsSupplier', JoinAsSupplierSchema);
 export default JoinAsSupplier;
