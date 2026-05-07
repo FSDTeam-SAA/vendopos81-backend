@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import { Types } from 'mongoose';
 
 export interface IJoinAsSupplier {
   _id: string;
@@ -9,13 +9,12 @@ export interface IJoinAsSupplier {
   brandName: string;
   shopSlug: string;
   description: string;
-  status: "pending" | "approved" | "rejected";
+  status: 'pending' | 'approved' | 'rejected';
   phone: string;
   email: string;
   reasonForRejection?: string;
   warehouseLocation: string;
   address: string;
-  location: string;
   street: string;
   postalCode: string;
   logo: {
@@ -37,7 +36,7 @@ export interface IJoinAsSupplier {
 export interface IQuery {
   page?: string;
   limit?: string;
-  status?: "pending" | "approved" | "rejected";
-  sort?: "1day" | "7day" | "atoz";
+  status?: 'pending' | 'approved' | 'rejected';
+  sort?: '1day' | '7day' | 'atoz';
   search?: string;
 }
