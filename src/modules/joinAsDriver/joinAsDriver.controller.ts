@@ -1,7 +1,7 @@
-import { StatusCodes } from "http-status-codes";
-import catchAsync from "../../utils/catchAsync";
-import sendResponse from "../../utils/sendResponse";
-import { joinAsDriverService } from "./joinAsDriver.service";
+import { StatusCodes } from 'http-status-codes';
+import catchAsync from '../../utils/catchAsync';
+import sendResponse from '../../utils/sendResponse';
+import { joinAsDriverService } from './joinAsDriver.service';
 
 const updateMyProfile = catchAsync(async (req, res) => {
   const { id } = req.user; // This is the userId from the JWT
@@ -12,21 +12,21 @@ const updateMyProfile = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Profile updated successfully",
+    message: 'Profile updated successfully',
     data: result,
   });
 });
 
 const getMyDriverInfo = catchAsync(async (req, res) => {
   // Extract 'id' attached by the auth middleware from the decoded JWT
-  const { id } = req.user; 
-  
+  const { id } = req.user;
+
   const result = await joinAsDriverService.getMyDriverInfoFromDB(id);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Driver profile retrieved successfully",
+    message: 'Driver profile retrieved successfully',
     data: result,
   });
 });
@@ -51,7 +51,7 @@ const suspendDriver = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Suspension toggled",
+    message: 'Suspension toggled',
   });
 });
 
@@ -61,16 +61,16 @@ const unsuspendDriver = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Unsuspension toggled",
+    message: 'Unsuspension toggled',
   });
-})
+});
 
 const getAllDrivers = catchAsync(async (req, res) => {
   const result = await joinAsDriverService.getAllDrivers(req.query);
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Drivers retrieved successfully",
+    message: 'Drivers retrieved successfully',
     meta: result.meta,
     data: result.data,
   });
@@ -82,7 +82,7 @@ const getSingleDriver = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Driver details retrieved",
+    message: 'Driver details retrieved',
     data: result,
   });
 });
@@ -93,21 +93,20 @@ const deleteDriver = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Driver deleted successfully",
+    message: 'Driver deleted successfully',
   });
-})
-
+});
 
 const registerDriverUnified = catchAsync(async (req, res) => {
   const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-  
+
   // req.user is populated by optionalAuth, otherwise it is undefined
   const result = await joinAsDriverService.registerDriverUnified(req.body, files, req.user);
 
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
     success: true,
-    message: "Application submitted successfully",
+    message: 'Application submitted successfully',
     data: result,
   });
 });
@@ -119,7 +118,7 @@ const approveDriverApplication = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Driver approved and role updated successfully!",
+    message: 'Driver approved and role updated successfully!',
     data: result,
   });
 });
@@ -134,6 +133,5 @@ export const joinAsDriverController = {
   deleteDriver,
   registerDriverUnified,
   updateMyProfile,
-  approveDriverApplication
-
+  approveDriverApplication,
 };
