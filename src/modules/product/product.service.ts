@@ -132,6 +132,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     showOnlyDiscount,
     addBy: user.role === "supplier" ? "supplier" : "admin",
     isVendorBrand: user.role === "admin",
+    status: user.role === "admin" ? "approved" : "pending",
   };
 
   // 🔹 CREATE PRODUCT
