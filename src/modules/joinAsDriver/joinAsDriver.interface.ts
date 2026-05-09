@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import { Types } from 'mongoose';
 
 export interface IJoinAsDriver {
   _id: string;
@@ -13,14 +13,14 @@ export interface IJoinAsDriver {
   city: string;
   state: string;
   zipCode: string;
-  status: "pending" | "approved" | "rejected";
+  status: 'pending' | 'approved' | 'rejected';
   documentUrl: {
     public_id: string;
     url: string;
   }[];
   isSuspended: boolean;
   // Add this field to your JoinAsDriverSchema
-isOnline: boolean;
+  isOnline: boolean;
   suspendedUntil: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -29,9 +29,7 @@ isOnline: boolean;
 export interface IDriverQuery {
   page?: string;
   limit?: string;
-  status?: "pending" | "approved" | "rejected";
-  sort?: "1day" | "7day" | "atoz";
+  status?: 'pending' | 'approved' | 'rejected';
+  sort?: '1day' | '7day' | 'atoz';
   search?: string;
 }
-
-

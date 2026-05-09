@@ -1,15 +1,12 @@
-import { StatusCodes } from "http-status-codes";
-import AppError from "../../errors/AppError";
-import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary";
-import sendEmail from "../../utils/sendEmail";
-import sendTemplateMail from "../../utils/sendTamplateMail";
-import { User } from "../user/user.model";
-import { IDriverQuery, IJoinAsDriver } from "./joinAsDriver.interface";
-import JoinAsDriver from "./joinAsDriver.model";
-import mongoose from "mongoose";
-
-
-
+import { StatusCodes } from 'http-status-codes';
+import AppError from '../../errors/AppError';
+import { uploadToCloudinary, deleteFromCloudinary } from '../../utils/cloudinary';
+import sendEmail from '../../utils/sendEmail';
+import sendTemplateMail from '../../utils/sendTamplateMail';
+import { User } from '../user/user.model';
+import { IDriverQuery, IJoinAsDriver } from './joinAsDriver.interface';
+import JoinAsDriver from './joinAsDriver.model';
+import mongoose from 'mongoose';
 
 const getAllDrivers = async (query: IDriverQuery) => {
   const page = Number(query.page) || 1;
@@ -19,20 +16,20 @@ const getAllDrivers = async (query: IDriverQuery) => {
   const filter: any = {};
   if (query.status) filter.status = query.status;
 
-  // Search Logic Fix: If searching by name/email, we usually search the User collection 
-  // and then filter the Driver profiles. For now, let's stick to driver-specific fields 
+  // Search Logic Fix: If searching by name/email, we usually search the User collection
+  // and then filter the Driver profiles. For now, let's stick to driver-specific fields
   // or use a more advanced aggregation if needed.
   const search = query.search
     ? {
         $or: [
-          { firstName: { $regex: query.search, $options: "i" } }, // Driver profile name
-          { email: { $regex: query.search, $options: "i" } },     // Driver profile email
+          { firstName: { $regex: query.search, $options: 'i' } }, // Driver profile name
+          { email: { $regex: query.search, $options: 'i' } }, // Driver profile email
         ],
       }
     : {};
 
   const drivers = await JoinAsDriver.find({ ...filter, ...search })
-    .populate("userId", "firstName lastName email image")
+    .populate('userId', 'firstName lastName email image')
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
@@ -47,48 +44,51 @@ const getAllDrivers = async (query: IDriverQuery) => {
 const getMyDriverInfoFromDB = async (userIdFromToken: string) => {
   // Use the ID from JWT to find the document where userId matches
   const result = await JoinAsDriver.findOne({ userId: userIdFromToken }).populate(
-    "userId",
-    "firstName lastName email image role"
+    'userId',
+    'firstName lastName email image role',
   );
 
   if (!result) {
-    throw new AppError("Driver profile not found. Please register as a driver.", StatusCodes.NOT_FOUND);
+    throw new AppError(
+      'Driver profile not found. Please register as a driver.',
+      StatusCodes.NOT_FOUND,
+    );
   }
-  return result;  
+  return result;
 };
 
-const updateDriverStatus = async (id: string, status: "approved" | "rejected") => {
+const updateDriverStatus = async (id: string, status: 'approved' | 'rejected') => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const driverApp = await JoinAsDriver.findById(id).session(session);
-    if (!driverApp) throw new AppError("Application not found", StatusCodes.NOT_FOUND);
+    if (!driverApp) throw new AppError('Application not found', StatusCodes.NOT_FOUND);
 
-    if (status === "approved") {
+    if (status === 'approved') {
       const user = await User.findById(driverApp.userId).session(session);
-      if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
+      if (!user) throw new AppError('User not found', StatusCodes.NOT_FOUND);
 
       const tempPassword = Math.random().toString(36).slice(-8);
 
       // 1. Promote User & Set Password (Model hashes this automatically)
-      user.role = "driver";
-      user.password = tempPassword; 
+      user.role = 'driver';
+      user.password = tempPassword;
       user.isVerified = true;
       await user.save({ session });
 
       // 2. Update Application Status
-      driverApp.status = "approved";
+      driverApp.status = 'approved';
       await driverApp.save({ session });
 
       // 3. Send Unified Approval Email
       await sendEmail({
         to: driverApp.email,
-        subject: "Application Approved - Welcome to Vendo Food Distribution System!",
+        subject: 'Application Approved - Welcome to Vendo Food Distribution System!',
         html: sendTemplateMail({
-          type: "success",
+          type: 'success',
           email: driverApp.email,
-          subject: "Welcome to the Team!",
+          subject: 'Welcome to the Team!',
           message: `
             <h1 style="color: #2ecc71;">Congratulations!</h1>
             <p>Your application is approved. Use these credentials to log in to the Driver Dashboard:</p>
@@ -97,17 +97,17 @@ const updateDriverStatus = async (id: string, status: "approved" | "rejected") =
               <p><b>Temporary Password:</b> ${tempPassword}</p>
             </div>
             <p>Please change your password immediately after your first login.</p>
-          `
+          `,
         }),
       });
     } else {
       // Handle Rejection
-      driverApp.status = "rejected";
+      driverApp.status = 'rejected';
       await driverApp.save({ session });
 
       await sendEmail({
         to: driverApp.email,
-        subject: "Driver Application Update",
+        subject: 'Driver Application Update',
         html: `<p>Hello ${driverApp.firstName}, unfortunately your application was not approved at this time.</p>`,
       });
     }
@@ -122,15 +122,14 @@ const updateDriverStatus = async (id: string, status: "approved" | "rejected") =
   }
 };
 
-
 const suspendDriver = async (id: string) => {
   const driver = await JoinAsDriver.findById(id);
   if (!driver) {
-    throw new AppError("Driver not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Driver not found', StatusCodes.NOT_FOUND);
   }
 
   if (driver.isSuspended) {
-    throw new AppError("Driver is already suspended", StatusCodes.BAD_REQUEST);
+    throw new AppError('Driver is already suspended', StatusCodes.BAD_REQUEST);
   }
 
   driver.isSuspended = true;
@@ -138,7 +137,7 @@ const suspendDriver = async (id: string) => {
 
   await sendEmail({
     to: driver.email,
-    subject: "Account Suspended",
+    subject: 'Account Suspended',
     html: `
       <h3>Account Suspended</h3>
       <p>Your driver account has been suspended by the admin.</p>
@@ -152,11 +151,11 @@ const suspendDriver = async (id: string) => {
 const unsuspendDriver = async (id: string) => {
   const driver = await JoinAsDriver.findById(id);
   if (!driver) {
-    throw new AppError("Driver not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Driver not found', StatusCodes.NOT_FOUND);
   }
 
   if (!driver.isSuspended) {
-    throw new AppError("Driver is not suspended", StatusCodes.BAD_REQUEST);
+    throw new AppError('Driver is not suspended', StatusCodes.BAD_REQUEST);
   }
 
   driver.isSuspended = false;
@@ -164,7 +163,7 @@ const unsuspendDriver = async (id: string) => {
 
   await sendEmail({
     to: driver.email,
-    subject: "Account Reactivated",
+    subject: 'Account Reactivated',
     html: `
       <h3>Account Reactivated</h3>
       <p>Your driver account has been reactivated.</p>
@@ -177,11 +176,11 @@ const unsuspendDriver = async (id: string) => {
 
 const getSingleDriver = async (id: string) => {
   const result = await JoinAsDriver.findById(id).populate(
-    "userId",
-    "firstName lastName email image"
+    'userId',
+    'firstName lastName email image',
   );
   if (!result) {
-    throw new AppError("Driver application not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Driver application not found', StatusCodes.NOT_FOUND);
   }
   return result;
 };
@@ -191,7 +190,7 @@ const deleteDriver = async (id: string) => {
   session.startTransaction();
   try {
     const driver = await JoinAsDriver.findById(id).session(session);
-    if (!driver) throw new AppError("Driver not found", StatusCodes.NOT_FOUND);
+    if (!driver) throw new AppError('Driver not found', StatusCodes.NOT_FOUND);
 
     // 1. Delete associated images from Cloudinary
     if (driver.documentUrl?.length) {
@@ -202,13 +201,13 @@ const deleteDriver = async (id: string) => {
 
     // 2. Decide: Delete User or just revert Role?
     // Usually, revert the role back to 'customer'
-    await User.findByIdAndUpdate(driver.userId, { role: "customer" }, { session });
+    await User.findByIdAndUpdate(driver.userId, { role: 'customer' }, { session });
 
     // 3. Delete the Driver Application
     await JoinAsDriver.findByIdAndDelete(id).session(session);
 
     await session.commitTransaction();
-    return { message: "Driver reverted to customer and application deleted" };
+    return { message: 'Driver reverted to customer and application deleted' };
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -221,98 +220,123 @@ const updateMyProfileInDB = async (id: string, payload: Partial<IJoinAsDriver>) 
   // 1. Check if the driver profile exists
   const isDriverExist = await JoinAsDriver.findOne({ userId: id });
   if (!isDriverExist) {
-    throw new AppError("Driver profile not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Driver profile not found', StatusCodes.NOT_FOUND);
   }
 
   // 2. SECURITY: Remove fields the driver is NOT allowed to change
-  const restrictedFields = ["status", "userId", "isSuspended", "suspendedUntil"];
+  const restrictedFields = ['status', 'userId', 'isSuspended', 'suspendedUntil'];
   restrictedFields.forEach((field) => delete (payload as any)[field]);
 
   // 3. Update the document
   const result = await JoinAsDriver.findOneAndUpdate(
     { userId: id }, // Match by the User ID from token
-    payload, 
+    payload,
     {
       new: true,
       runValidators: true,
-    }
-  ).populate("userId", "firstName lastName email image");
+    },
+  ).populate('userId', 'firstName lastName email image');
 
   return result;
 };
 
-
 const registerDriverUnified = async (payload: any, files: any, currentUser?: any) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+
   const uploadedImages: { public_id: string; url: string }[] = [];
+  const generatedPassword = Math.floor(100000 + Math.random() * 900000).toString();
 
   try {
     let userId: string;
 
     if (currentUser) {
-      // --- LOGGED IN USER ---
       const user = await User.findOne({ email: currentUser.email });
-      if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
-      
-      // Check if they are already a driver or have an active application
-      if (user.role === "driver") throw new AppError("You are already a registered driver", StatusCodes.BAD_REQUEST);
-      
+
+      if (!user) {
+        throw new AppError('User not found', StatusCodes.NOT_FOUND);
+      }
+
+      if (user.role === 'driver') {
+        throw new AppError('You are already a registered driver', StatusCodes.BAD_REQUEST);
+      }
+
       const existingApp = await JoinAsDriver.findOne({ userId: user._id });
-      if (existingApp) throw new AppError(`Application already exists: ${existingApp.status}`, StatusCodes.BAD_REQUEST);
+      if (existingApp) {
+        throw new AppError(
+          `Application already exists: ${existingApp.status}`,
+          StatusCodes.BAD_REQUEST,
+        );
+      }
 
       userId = user._id;
     } else {
-      // --- NEW GUEST REGISTRATION --- 
-      const isExist = await User.findOne({ $or: [{ email: payload.email }, { phone: payload.phone }] });
-      if (isExist) throw new AppError("Email or Phone already exists", StatusCodes.CONFLICT);
+      const isExist = await User.findOne({
+        $or: [{ email: payload.email }, { phone: payload.phone }],
+      });
 
-      // We create them as a 'customer' initially because they haven't been approved yet.
-      // SENIOR TIP: You could also create a role called 'pending_driver'
-      const [newUser] = await User.create([{
-        ...payload,
-        role: "customer", 
-        isVerified: false
-      }], { session });
+      if (isExist) {
+        throw new AppError('Email or Phone already exists', StatusCodes.CONFLICT);
+      }
+
+      const { password: _, ...safePayload } = payload;
+
+      const [newUser] = await User.create(
+        [
+          {
+            ...safePayload,
+            password: generatedPassword,
+            role: 'customer',
+            isVerified: false,
+          },
+        ],
+        { session },
+      );
 
       userId = newUser._id;
     }
 
-    // --- FILE HANDLING --- 
     const documentFiles = files?.documents || [];
-    if (documentFiles.length === 0) throw new AppError("Please upload required documents", StatusCodes.BAD_REQUEST);
+    if (documentFiles.length === 0) {
+      throw new AppError('Please upload required documents', StatusCodes.BAD_REQUEST);
+    }
 
     for (const file of documentFiles) {
-      const uploaded = await uploadToCloudinary(file.path, "drivers/documents");
+      const uploaded = await uploadToCloudinary(file.path, 'drivers/documents');
+
       uploadedImages.push({
         url: uploaded.secure_url,
-        public_id: uploaded.public_id
+        public_id: uploaded.public_id,
       });
     }
 
-    // --- CREATE THE APPLICATION ---
-    // This is the "JoinAsDriver" record that the Admin will review
-    const [newDriverApplication] = await JoinAsDriver.create([{
-      ...payload,
-      userId,
-      documentUrl: uploadedImages,
-      status: "pending" 
-    }], { session });
+    const { password: __, ...safePayloadForApp } = payload;
+    const [newDriverApplication] = await JoinAsDriver.create(
+      [
+        {
+          ...safePayloadForApp,
+          userId,
+          documentUrl: uploadedImages,
+          status: 'pending',
+        },
+      ],
+      { session },
+    );
 
     await session.commitTransaction();
-    
-    // Return unified data
-    return { 
-        userId, 
-        applicationId: newDriverApplication._id,
-        currentRole: "customer",
-        applicationStatus: "pending" 
-    };
 
+    return {
+      userId,
+      applicationId: newDriverApplication._id,
+      currentRole: 'customer',
+      applicationStatus: 'pending',
+    };
   } catch (error) {
     await session.abortTransaction();
-    // Rollback images if DB fails
-    for (const img of uploadedImages) { await deleteFromCloudinary(img.public_id); }
+    for (const img of uploadedImages) {
+      await deleteFromCloudinary(img.public_id);
+    }
+
     throw error;
   } finally {
     session.endSession();
@@ -327,11 +351,11 @@ const approveDriverApplication = async (applicationId: string) => {
     // 1. Find the application
     const application = await JoinAsDriver.findById(applicationId).session(session);
     if (!application) {
-      throw new AppError("Application not found", StatusCodes.NOT_FOUND);
+      throw new AppError('Application not found', StatusCodes.NOT_FOUND);
     }
 
     if (application.status === 'approved') {
-      throw new AppError("Application is already approved", StatusCodes.BAD_REQUEST);
+      throw new AppError('Application is already approved', StatusCodes.BAD_REQUEST);
     }
 
     // 2. Update Application Status
@@ -342,17 +366,16 @@ const approveDriverApplication = async (applicationId: string) => {
     const user = await User.findByIdAndUpdate(
       application.userId,
       { role: 'driver' }, // Elevate the role here
-      { session, new: true }
+      { session, new: true },
     );
 
     if (!user) {
-      throw new AppError("Associated user not found", StatusCodes.NOT_FOUND);
+      throw new AppError('Associated user not found', StatusCodes.NOT_FOUND);
     }
 
     // 4. Commit everything
     await session.commitTransaction();
     return { application, user };
-
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -362,7 +385,6 @@ const approveDriverApplication = async (applicationId: string) => {
 };
 
 export const joinAsDriverService = {
-
   getMyDriverInfoFromDB,
   getAllDrivers,
   updateDriverStatus,
@@ -372,6 +394,5 @@ export const joinAsDriverService = {
   deleteDriver,
   registerDriverUnified,
   updateMyProfileInDB,
-  approveDriverApplication
-
+  approveDriverApplication,
 };

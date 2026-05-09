@@ -7,8 +7,7 @@ export const DriverValidation = {
       firstName: z.string({ required_error: 'First name is required' }),
       lastName: z.string({ required_error: 'Last name is required' }),
       phone: z.string({ required_error: 'Phone number is required' }),
-      email: z.string().email('Invalid email address'),
-      password: z.string().min(6).optional(), // Required only for guests (checked in service)
+      email: z.string().email('Invalid email address'), // Required only for guests (checked in service)
       yearsOfExperience: z.preprocess((val) => Number(val), z.number().min(0)),
       licenseExpiryDate: z.string({ required_error: 'License expiry date is required' }),
       address: z.string({ required_error: 'Street address is required' }),
