@@ -1,65 +1,53 @@
 /* eslint-disable prefer-const */
-import { StatusCodes } from "http-status-codes";
-import mongoose, { PipelineStage } from "mongoose";
-import AppError from "../../errors/AppError";
-import { buildAggregationPipeline } from "../../lib/aggregationHelpers";
-import generateShopSlug from "../../middleware/generateShopSlug";
-import { createNotification } from "../../socket/notification.service";
-import {
-  deleteFromCloudinary,
-  uploadToCloudinary,
-} from "../../utils/cloudinary";
-import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
-import Order from "../order/order.model";
-import { User } from "../user/user.model";
-import Wholesale from "../wholeSale/wholeSale.model";
-import { IProduct } from "./product.interface";
-import Product from "./product.model";
+import { StatusCodes } from 'http-status-codes';
+import mongoose, { PipelineStage } from 'mongoose';
+import AppError from '../../errors/AppError';
+import { buildAggregationPipeline } from '../../lib/aggregationHelpers';
+import generateShopSlug from '../../middleware/generateShopSlug';
+import { createNotification } from '../../socket/notification.service';
+import { deleteFromCloudinary, uploadToCloudinary } from '../../utils/cloudinary';
+import JoinAsSupplier from '../joinAsSupplier/joinAsSupplier.model';
+import Order from '../order/order.model';
+import { User } from '../user/user.model';
+import Wholesale from '../wholeSale/wholeSale.model';
+import { IProduct } from './product.interface';
+import Product from './product.model';
 
 const createProduct = async (payload: IProduct, files: any, email: string) => {
   const user = await User.findOne({ email });
   if (!user) {
-    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+    throw new AppError('Your account does not exist', StatusCodes.NOT_FOUND);
   }
 
-  if (user.role === "supplier" && user.isSuspended === true) {
+  if (user.role === 'supplier' && user.isSuspended === true) {
     throw new AppError(
-      "Your account has been suspended. Please contact support",
+      'Your account has been suspended. Please contact support',
       StatusCodes.BAD_REQUEST,
     );
   }
 
   // 🔹 SUPPLIER VALIDATION:
-  if (user.role === "supplier" && user.stripeOnboardingCompleted === false) {
+  if (user.role === 'supplier' && user.stripeOnboardingCompleted === false) {
     throw new AppError(
-      "You have not completed payment onboarding process",
+      'You have not completed payment onboarding process',
       StatusCodes.BAD_REQUEST,
     );
   }
 
   let isSupplierExist = null;
-  if (user.role === "supplier") {
+  if (user.role === 'supplier') {
     isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
 
     if (!isSupplierExist) {
-      throw new AppError(
-        "You have not applied to be a supplier",
-        StatusCodes.BAD_REQUEST,
-      );
+      throw new AppError('You have not applied to be a supplier', StatusCodes.BAD_REQUEST);
     }
 
-    if (isSupplierExist.status !== "approved") {
-      throw new AppError(
-        "Your supplier application is not approved yet",
-        StatusCodes.BAD_REQUEST,
-      );
+    if (isSupplierExist.status !== 'approved') {
+      throw new AppError('Your supplier application is not approved yet', StatusCodes.BAD_REQUEST);
     }
 
     if (isSupplierExist.isSuspended) {
-      throw new AppError(
-        "Your supplier account has been suspended",
-        StatusCodes.BAD_REQUEST,
-      );
+      throw new AppError('Your supplier account has been suspended', StatusCodes.BAD_REQUEST);
     }
   }
 
@@ -67,7 +55,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
   const uploadedImages: { url: string; public_id: string }[] = [];
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadToCloudinary(file.path, "products");
+      const uploaded = await uploadToCloudinary(file.path, 'products');
       uploadedImages.push({
         url: uploaded.secure_url,
         public_id: uploaded.public_id,
@@ -90,8 +78,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     return {
       ...v,
       discount,
-      discountPrice:
-        discount > 0 ? v.price - (v.price * discount) / 100 : v.price,
+      discountPrice: discount > 0 ? v.price - (v.price * discount) / 100 : v.price,
     };
   });
 
@@ -118,37 +105,37 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     }
   }
 
+  const addBy = user.role === 'supplier' ? 'supplier' : 'admin';
+
   // 🔹 PRODUCT DATA
   const data = {
     ...payload,
     images: uploadedImages,
     variants,
     userId: user._id,
-    supplierId: user.role === "supplier" ? isSupplierExist!._id : null,
+    supplierId: user.role === 'supplier' ? isSupplierExist!._id : null,
     // slug,
     seo: seoData,
     priceFrom,
     discountPriceFrom,
     showOnlyDiscount,
-    addBy: user.role === "supplier" ? "supplier" : "admin",
-    isVendorBrand: user.role === "admin",
-    status: user.role === "admin" ? "approved" : "pending",
+    addBy,
+    isVendorBrand: user.role === 'admin',
+    status: addBy === 'admin' ? 'approved' : 'pending',
   };
 
   // 🔹 CREATE PRODUCT
   const result = await Product.create(data);
 
-  const adminUsers = await User.findOne({ role: "admin" });
+  const adminUsers = await User.findOne({ role: 'admin' });
 
   const creatorName =
-    user.firstName && user.lastName
-      ? `${user.firstName} ${user.lastName}`
-      : user.email;
+    user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email;
 
   await createNotification({
     to: new mongoose.Types.ObjectId(adminUsers!._id),
     message: `New product added ${result.title} by ${creatorName}`,
-    type: "product",
+    type: 'product',
     id: result._id,
   });
 
@@ -157,8 +144,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
 
 const getMyAddedProducts = async (email: string, query: any) => {
   const user = await User.findOne({ email });
-  if (!user)
-    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  if (!user) throw new AppError('Your account does not exist', StatusCodes.NOT_FOUND);
 
   // 🔹 Pagination
   const page = Number(query.page) || 1;
@@ -168,8 +154,8 @@ const getMyAddedProducts = async (email: string, query: any) => {
   // 🔹 Products (with pagination)
   const products = await Product.find({ userId: user._id })
     .populate({
-      path: "categoryId",
-      select: "region",
+      path: 'categoryId',
+      select: 'region',
     })
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -183,24 +169,23 @@ const getMyAddedProducts = async (email: string, query: any) => {
 
   // 🔹 Total orders (supplier products used)
   const orderAnalytics = await Order.aggregate([
-    { $unwind: "$items" },
+    { $unwind: '$items' },
     {
       $match: {
-        "items.supplierId": user._id, // 👈 supplier reference
+        'items.supplierId': user._id, // 👈 supplier reference
       },
     },
     {
       $group: {
-        _id: "$_id", // unique order
+        _id: '$_id', // unique order
       },
     },
     {
-      $count: "totalOrder",
+      $count: 'totalOrder',
     },
   ]);
 
-  const totalOrder =
-    orderAnalytics.length > 0 ? orderAnalytics[0].totalOrder : 0;
+  const totalOrder = orderAnalytics.length > 0 ? orderAnalytics[0].totalOrder : 0;
 
   return {
     data: products,
@@ -243,17 +228,17 @@ const getAllProducts = async (query: any) => {
   // ===================== CATEGORY LOOKUP =====================
   pipeline.push({
     $lookup: {
-      from: "categories",
-      let: { categoryId: "$categoryId" },
+      from: 'categories',
+      let: { categoryId: '$categoryId' },
       pipeline: [
-        { $match: { $expr: { $eq: ["$_id", "$$categoryId"] } } },
+        { $match: { $expr: { $eq: ['$_id', '$$categoryId'] } } },
         { $project: { _id: 1, region: 1, slug: 1 } },
       ],
-      as: "categoryId",
+      as: 'categoryId',
     },
   });
   pipeline.push({
-    $unwind: { path: "$categoryId", preserveNullAndEmptyArrays: true },
+    $unwind: { path: '$categoryId', preserveNullAndEmptyArrays: true },
   });
 
   // ===================== REGION _ID FILTER =====================
@@ -261,7 +246,7 @@ const getAllProducts = async (query: any) => {
     const regionObjectId = new mongoose.Types.ObjectId(region);
     pipeline.push({
       $match: {
-        "categoryId._id": regionObjectId,
+        'categoryId._id': regionObjectId,
       },
     });
   }
@@ -269,33 +254,33 @@ const getAllProducts = async (query: any) => {
   // ===================== SUPPLIER LOOKUP =====================
   pipeline.push({
     $lookup: {
-      from: "joinassuppliers",
-      let: { supplierId: "$supplierId" },
+      from: 'joinassuppliers',
+      let: { supplierId: '$supplierId' },
       pipeline: [
-        { $match: { $expr: { $eq: ["$_id", "$$supplierId"] } } },
+        { $match: { $expr: { $eq: ['$_id', '$$supplierId'] } } },
         { $project: { _id: 1, shopName: 1, brandName: 1 } },
       ],
-      as: "supplierId",
+      as: 'supplierId',
     },
   });
   pipeline.push({
-    $unwind: { path: "$supplierId", preserveNullAndEmptyArrays: true },
+    $unwind: { path: '$supplierId', preserveNullAndEmptyArrays: true },
   });
 
   // ===================== WHOLESALE LOOKUP =====================
   pipeline.push({
     $lookup: {
-      from: "wholesales",
-      let: { wholesaleIds: "$wholesaleId" },
+      from: 'wholesales',
+      let: { wholesaleIds: '$wholesaleId' },
       pipeline: [
         {
           $match: {
-            $expr: { $in: ["$_id", "$$wholesaleIds"] },
+            $expr: { $in: ['$_id', '$$wholesaleIds'] },
             isActive: true,
           },
         },
       ],
-      as: "wholesaleId",
+      as: 'wholesaleId',
     },
   });
 
@@ -304,11 +289,11 @@ const getAllProducts = async (query: any) => {
     pipeline.push({
       $match: {
         $or: [
-          { title: { $regex: search, $options: "i" } },
-          { productName: { $regex: search, $options: "i" } },
-          { productType: { $regex: search, $options: "i" } },
-          { "supplierId.shopName": { $regex: search, $options: "i" } },
-          { "supplierId.brandName": { $regex: search, $options: "i" } },
+          { title: { $regex: search, $options: 'i' } },
+          { productName: { $regex: search, $options: 'i' } },
+          { productType: { $regex: search, $options: 'i' } },
+          { 'supplierId.shopName': { $regex: search, $options: 'i' } },
+          { 'supplierId.brandName': { $regex: search, $options: 'i' } },
         ],
       },
     });
@@ -318,17 +303,17 @@ const getAllProducts = async (query: any) => {
   const match: any = {};
   if (originCountry) match.originCountry = originCountry;
   if (productType) match.productType = productType;
-  if (isHalal !== undefined) match.isHalal = isHalal === "true";
-  if (isOrganic !== undefined) match.isOrganic = isOrganic === "true";
-  if (isFrozen !== undefined) match.isFrozen = isFrozen === "true";
-  if (isKosher !== undefined) match.isKosher = isKosher === "true";
+  if (isHalal !== undefined) match.isHalal = isHalal === 'true';
+  if (isOrganic !== undefined) match.isOrganic = isOrganic === 'true';
+  if (isFrozen !== undefined) match.isFrozen = isFrozen === 'true';
+  if (isKosher !== undefined) match.isKosher = isKosher === 'true';
 
   if (Object.keys(match).length > 0) pipeline.push({ $match: match });
 
   // ===================== FILTER BY UNIT =====================
   if (unit) {
     pipeline.push({
-      $match: { "variants.unit": unit },
+      $match: { 'variants.unit': unit },
     });
   }
 
@@ -338,18 +323,18 @@ const getAllProducts = async (query: any) => {
       wholesaleMinPrice: {
         $min: {
           $map: {
-            input: "$wholesaleId",
-            as: "wh",
+            input: '$wholesaleId',
+            as: 'wh',
             in: {
               $switch: {
                 branches: [
                   {
-                    case: { $eq: ["$$wh.type", "case"] },
-                    then: { $min: "$$wh.caseItems.price" },
+                    case: { $eq: ['$$wh.type', 'case'] },
+                    then: { $min: '$$wh.caseItems.price' },
                   },
                   {
-                    case: { $eq: ["$$wh.type", "pallet"] },
-                    then: { $min: "$$wh.palletItems.price" },
+                    case: { $eq: ['$$wh.type', 'pallet'] },
+                    then: { $min: '$$wh.palletItems.price' },
                   },
                 ],
                 default: null,
@@ -369,18 +354,12 @@ const getAllProducts = async (query: any) => {
           $and: [
             minPrice
               ? {
-                  $gte: [
-                    { $ifNull: ["$wholesaleMinPrice", "$priceFrom"] },
-                    Number(minPrice),
-                  ],
+                  $gte: [{ $ifNull: ['$wholesaleMinPrice', '$priceFrom'] }, Number(minPrice)],
                 }
               : {},
             maxPrice
               ? {
-                  $lte: [
-                    { $ifNull: ["$wholesaleMinPrice", "$priceFrom"] },
-                    Number(maxPrice),
-                  ],
+                  $lte: [{ $ifNull: ['$wholesaleMinPrice', '$priceFrom'] }, Number(maxPrice)],
                 }
               : {},
           ],
@@ -390,7 +369,7 @@ const getAllProducts = async (query: any) => {
   }
 
   // ===================== COUNT FOR PAGINATION =====================
-  const countPipeline = [...pipeline, { $count: "total" }];
+  const countPipeline = [...pipeline, { $count: 'total' }];
   const countResult = await Product.aggregate(countPipeline);
   const total = countResult[0]?.total || 0;
 
@@ -406,19 +385,17 @@ const getAllProducts = async (query: any) => {
 
     const wholesales = (product.wholesaleId || [])
       .map((wh: any) => {
-        if (wh.type === "case") {
+        if (wh.type === 'case') {
           const caseItems = wh.caseItems?.filter(
             (item: any) => item.productId?.toString() === productId,
           );
           if (!caseItems?.length) return null;
           return { ...wh, caseItems };
         }
-        if (wh.type === "pallet") {
+        if (wh.type === 'pallet') {
           const palletItems = wh.palletItems
             ?.map((p: any) => {
-              const items = p.items?.filter(
-                (i: any) => i.productId?.toString() === productId,
-              );
+              const items = p.items?.filter((i: any) => i.productId?.toString() === productId);
               if (!items?.length) return null;
               return { ...p, items };
             })
@@ -458,7 +435,7 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     // ================= BASE + SEARCH + SORT + PAGINATION =================
     ...buildAggregationPipeline(query, {
       filters: baseFilter,
-      searchFields: ["title", "originCountry", "productName", "productType"],
+      searchFields: ['title', 'originCountry', 'productName', 'productType'],
       sortFields: { createdAt: -1 },
       page: Number(query.page) || 1,
       limit: Number(query.limit) || 10,
@@ -467,41 +444,41 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     // ================= LOOKUPS =================
     {
       $lookup: {
-        from: "users",
-        localField: "userId",
-        foreignField: "_id",
-        as: "user",
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
       },
     },
-    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
-        from: "categories",
-        localField: "categoryId",
-        foreignField: "_id",
-        as: "category",
+        from: 'categories',
+        localField: 'categoryId',
+        foreignField: '_id',
+        as: 'category',
       },
     },
-    { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+    { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
-        from: "joinassuppliers",
-        localField: "supplierId",
-        foreignField: "_id",
-        as: "supplier",
+        from: 'joinassuppliers',
+        localField: 'supplierId',
+        foreignField: '_id',
+        as: 'supplier',
       },
     },
-    { $addFields: { supplier: { $arrayElemAt: ["$supplier", 0] } } },
+    { $addFields: { supplier: { $arrayElemAt: ['$supplier', 0] } } },
 
     // ================= DYNAMIC FILTERS =================
     {
       $match: {
         ...(query.categoryRegion && {
-          "category.region": query.categoryRegion,
+          'category.region': query.categoryRegion,
         }),
         ...(query.originCountry && { originCountry: query.originCountry }),
         ...(query.supplierBrand && {
-          "supplier.brandName": query.supplierBrand,
+          'supplier.brandName': query.supplierBrand,
         }),
       },
     },
@@ -544,7 +521,7 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     },
   ];
 
-  const data = await Product.aggregate(pipeline)
+  const data = await Product.aggregate(pipeline);
 
   // Count total after base filter (not including dynamic filters for simplicity)
   const total = await Product.countDocuments(baseFilter);
@@ -576,7 +553,7 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
 
   // ================= SEARCH =================
   if (query.search) {
-    const regex = new RegExp(query.search, "i");
+    const regex = new RegExp(query.search, 'i');
     pipeline.push({
       $match: {
         $or: [
@@ -593,7 +570,7 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   if (query.originCountry) {
     pipeline.push({
       $match: {
-        originCountry: new RegExp(`^${query.originCountry}$`, "i"),
+        originCountry: new RegExp(`^${query.originCountry}$`, 'i'),
       },
     });
   }
@@ -602,20 +579,20 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   pipeline.push(
     {
       $lookup: {
-        from: "categories",
-        localField: "categoryId",
-        foreignField: "_id",
-        as: "category",
+        from: 'categories',
+        localField: 'categoryId',
+        foreignField: '_id',
+        as: 'category',
       },
     },
-    { $unwind: "$category" },
+    { $unwind: '$category' },
   );
 
   // ================= REGION FILTER =================
   if (query.categoryRegion) {
     pipeline.push({
       $match: {
-        "category.categoryRegion": new RegExp(`^${query.categoryRegion}$`, "i"),
+        'category.categoryRegion': new RegExp(`^${query.categoryRegion}$`, 'i'),
       },
     });
   }
@@ -624,29 +601,29 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   pipeline.push(
     {
       $lookup: {
-        from: "joinassuppliers",
-        localField: "supplierId",
-        foreignField: "_id",
-        as: "supplier",
+        from: 'joinassuppliers',
+        localField: 'supplierId',
+        foreignField: '_id',
+        as: 'supplier',
       },
     },
-    { $unwind: "$supplier" },
+    { $unwind: '$supplier' },
   );
 
   // ================= SUPPLIER BRAND FILTER =================
   if (query.supplierBrand) {
     pipeline.push({
       $match: {
-        "supplier.brandName": new RegExp(`^${query.supplierBrand}$`, "i"),
+        'supplier.brandName': new RegExp(`^${query.supplierBrand}$`, 'i'),
       },
     });
   }
 
   // ================= SORT =================
   let sort: any = { createdAt: -1 };
-  if (query.sort === "az") sort = { productName: 1 };
-  if (query.sort === "za") sort = { productName: -1 };
-  if (query.sort === "old") sort = { createdAt: 1 };
+  if (query.sort === 'az') sort = { productName: 1 };
+  if (query.sort === 'za') sort = { productName: -1 };
+  if (query.sort === 'old') sort = { createdAt: 1 };
 
   pipeline.push({ $sort: sort });
 
@@ -656,10 +633,10 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   // ================= WHOLESALE LOOKUP =================
   pipeline.push({
     $lookup: {
-      from: "wholesales",
-      localField: "wholesaleId",
-      foreignField: "_id",
-      as: "wholesaleId",
+      from: 'wholesales',
+      localField: 'wholesaleId',
+      foreignField: '_id',
+      as: 'wholesaleId',
     },
   });
 
@@ -678,15 +655,15 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
 
       // 👇 rename populated fields
       categoryId: {
-        _id: "$category._id",
-        region: "$category.region",
-        slug: "$category.slug",
+        _id: '$category._id',
+        region: '$category.region',
+        slug: '$category.slug',
       },
 
       supplierId: {
-        _id: "$supplier._id",
-        shopName: "$supplier.shopName",
-        brandName: "$supplier.brandName",
+        _id: '$supplier._id',
+        shopName: '$supplier.shopName',
+        brandName: '$supplier.brandName',
       },
 
       wholesaleId: 1,
@@ -696,11 +673,9 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
   const data = await Product.aggregate(pipeline);
 
   // ================= TOTAL COUNT =================
-  const totalPipeline = pipeline.filter(
-    (p) => !p.$skip && !p.$limit && !p.$sort,
-  );
+  const totalPipeline = pipeline.filter((p) => !p.$skip && !p.$limit && !p.$sort);
 
-  totalPipeline.push({ $count: "total" });
+  totalPipeline.push({ $count: 'total' });
 
   const totalResult = await Product.aggregate(totalPipeline);
   const total = totalResult[0]?.total || 0;
@@ -721,13 +696,13 @@ const getFeaturedProducts = async () => {
     isFeatured: true,
   })
     .populate({
-      path: "categoryId",
-      select: "region",
+      path: 'categoryId',
+      select: 'region',
     })
     .populate({
-      path: "wholesaleId",
+      path: 'wholesaleId',
       match: {
-        type: { $ne: "fastMoving" },
+        type: { $ne: 'fastMoving' },
         isActive: true,
       },
     })
@@ -739,7 +714,7 @@ const getFeaturedProducts = async () => {
     const wholesales = (product.wholesaleId || [])
       .map((wh: any) => {
         // ✅ CASE
-        if (wh.type === "case") {
+        if (wh.type === 'case') {
           const caseItems = wh.caseItems.filter(
             (item: any) => item.productId.toString() === productId,
           );
@@ -753,7 +728,7 @@ const getFeaturedProducts = async () => {
         }
 
         // ✅ PALLET
-        if (wh.type === "pallet") {
+        if (wh.type === 'pallet') {
           const palletItems = wh.palletItems
             .map((pallet: any) => {
               const items = pallet.items.filter(
@@ -808,7 +783,7 @@ const getFastMovingProducts = async (query: Record<string, any>) => {
   const skip = (page - 1) * limit;
 
   const fastMovingWholesale = await Wholesale.findOne({
-    type: "fastMoving",
+    type: 'fastMoving',
     isActive: true,
   });
 
@@ -819,29 +794,27 @@ const getFastMovingProducts = async (query: Record<string, any>) => {
     };
   }
 
-  const productIds = fastMovingWholesale.fastMovingItems!.map(
-    (item) => item.productId,
-  );
+  const productIds = fastMovingWholesale.fastMovingItems!.map((item) => item.productId);
 
   const products = await Product.find({
     _id: { $in: productIds },
   })
-    .select("-variants")
+    .select('-variants')
     .populate({
-      path: "userId",
-      select: "firstName lastName email",
+      path: 'userId',
+      select: 'firstName lastName email',
     })
     .populate({
-      path: "categoryId",
-      select: "region",
+      path: 'categoryId',
+      select: 'region',
     })
     .populate({
-      path: "supplierId",
-      select: "shopName brandName logo",
+      path: 'supplierId',
+      select: 'shopName brandName logo',
     })
     .populate({
-      path: "wholesaleId",
-      match: { type: "fastMoving" },
+      path: 'wholesaleId',
+      match: { type: 'fastMoving' },
     })
     .skip(skip)
     .limit(limit);
@@ -862,32 +835,32 @@ const getFilterCategories = async () => {
     // Join categories
     {
       $lookup: {
-        from: "categories",
-        localField: "categoryId",
-        foreignField: "_id",
-        as: "category",
+        from: 'categories',
+        localField: 'categoryId',
+        foreignField: '_id',
+        as: 'category',
       },
     },
-    { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+    { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
 
     // Join suppliers
     {
       $lookup: {
-        from: "joinassuppliers",
-        localField: "supplierId",
-        foreignField: "_id",
-        as: "supplier",
+        from: 'joinassuppliers',
+        localField: 'supplierId',
+        foreignField: '_id',
+        as: 'supplier',
       },
     },
-    { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+    { $unwind: { path: '$supplier', preserveNullAndEmptyArrays: true } },
 
     // Group to get unique values
     {
       $group: {
         _id: null,
-        allBrands: { $addToSet: "$supplier.brandName" },
-        allRegion: { $addToSet: "$category.region" },
-        allOriginCountry: { $addToSet: "$originCountry" },
+        allBrands: { $addToSet: '$supplier.brandName' },
+        allRegion: { $addToSet: '$category.region' },
+        allOriginCountry: { $addToSet: '$originCountry' },
       },
     },
 
@@ -908,16 +881,16 @@ const getFilterCategories = async () => {
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);
   if (!isProductExist) {
-    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Product not found', StatusCodes.NOT_FOUND);
   }
 
   let product: any = await Product.findById(id)
     .populate({
-      path: "categoryId",
-      select: "region",
+      path: 'categoryId',
+      select: 'region',
     })
     .populate({
-      path: "wholesaleId", // এখানে fastMoving বাদ দিচ্ছি না!
+      path: 'wholesaleId', // এখানে fastMoving বাদ দিচ্ছি না!
       match: { isActive: true },
     })
     .lean();
@@ -928,7 +901,7 @@ const getSingleProduct = async (id: string) => {
   const wholesales = (product.wholesaleId || [])
     .map((wh: any) => {
       // CASE
-      if (wh.type === "case") {
+      if (wh.type === 'case') {
         const caseItems = wh.caseItems.filter(
           (item: any) => item.productId.toString() === productId,
         );
@@ -942,7 +915,7 @@ const getSingleProduct = async (id: string) => {
       }
 
       // PALLET
-      if (wh.type === "pallet") {
+      if (wh.type === 'pallet') {
         const palletItems = wh.palletItems
           .map((pallet: any) => {
             const items = pallet.items.filter(
@@ -993,17 +966,17 @@ const getTopRatedProducts = async () => {
     .sort({ averageRating: -1 })
     .limit(10)
     .populate({
-      path: "categoryId",
-      select: "region slug",
+      path: 'categoryId',
+      select: 'region slug',
     })
     .populate({
-      path: "supplierId",
-      select: "shopName brandName",
+      path: 'supplierId',
+      select: 'shopName brandName',
     })
     .populate({
-      path: "wholesaleId",
-      match: { type: { $ne: "fastMoving" }, isActive: true },
-      select: "-__v -createdAt -updatedAt",
+      path: 'wholesaleId',
+      match: { type: { $ne: 'fastMoving' }, isActive: true },
+      select: '-__v -createdAt -updatedAt',
     })
     .lean();
 
@@ -1028,17 +1001,17 @@ const getCaseDealsProducts = async () => {
     // status: "approved", //!If you want to show only approved products
   })
     .populate({
-      path: "categoryId",
-      select: "region slug",
+      path: 'categoryId',
+      select: 'region slug',
     })
     .populate({
-      path: "supplierId",
-      select: "shopName brandName",
+      path: 'supplierId',
+      select: 'shopName brandName',
     })
     .populate({
-      path: "wholesaleId",
-      match: { type: "case", isActive: true }, // only case wholesale
-      select: "-__v -createdAt -updatedAt",
+      path: 'wholesaleId',
+      match: { type: 'case', isActive: true }, // only case wholesale
+      select: '-__v -createdAt -updatedAt',
     })
     .lean();
 
@@ -1057,7 +1030,7 @@ const getCaseDealsProducts = async () => {
 };
 
 const getRelatedProducts = async (productId: string) => {
-  const product = await Product.findById(productId).select("categoryId").lean();
+  const product = await Product.findById(productId).select('categoryId').lean();
 
   if (!product || !product.categoryId) {
     return [];
@@ -1071,17 +1044,17 @@ const getRelatedProducts = async (productId: string) => {
     // isAvailable: true,
   })
     .populate({
-      path: "categoryId",
-      select: "region slug",
+      path: 'categoryId',
+      select: 'region slug',
     })
     .populate({
-      path: "supplierId",
-      select: "shopName brandName",
+      path: 'supplierId',
+      select: 'shopName brandName',
     })
     .populate({
-      path: "wholesaleId",
-      match: { type: "case", isActive: true },
-      select: "-__v -createdAt -updatedAt",
+      path: 'wholesaleId',
+      match: { type: 'case', isActive: true },
+      select: '-__v -createdAt -updatedAt',
     })
     .lean();
 
@@ -1091,14 +1064,10 @@ const getRelatedProducts = async (productId: string) => {
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);
   if (!isProductExist) {
-    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Product not found', StatusCodes.NOT_FOUND);
   }
 
-  await Product.findOneAndUpdate(
-    { _id: isProductExist._id },
-    { status },
-    { new: true },
-  );
+  await Product.findOneAndUpdate({ _id: isProductExist._id }, { status }, { new: true });
 };
 
 const updateProduct = async (
@@ -1108,30 +1077,20 @@ const updateProduct = async (
   email: string,
 ) => {
   const user = await User.findOne({ email });
-  if (!user)
-    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+  if (!user) throw new AppError('Your account does not exist', StatusCodes.NOT_FOUND);
 
   const product = await Product.findById(id);
-  if (!product) throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+  if (!product) throw new AppError('Product not found', StatusCodes.NOT_FOUND);
 
   let isSupplierExist = null;
-  if (user.role === "supplier") {
+  if (user.role === 'supplier') {
     isSupplierExist = await JoinAsSupplier.findOne({ userId: user._id });
     if (!isSupplierExist)
-      throw new AppError(
-        "You have not applied to be a supplier",
-        StatusCodes.BAD_REQUEST,
-      );
-    if (isSupplierExist.status !== "approved")
-      throw new AppError(
-        "Your supplier application is not approved yet",
-        StatusCodes.BAD_REQUEST,
-      );
+      throw new AppError('You have not applied to be a supplier', StatusCodes.BAD_REQUEST);
+    if (isSupplierExist.status !== 'approved')
+      throw new AppError('Your supplier application is not approved yet', StatusCodes.BAD_REQUEST);
     if (isSupplierExist.isSuspended)
-      throw new AppError(
-        "Your supplier account has been suspended",
-        StatusCodes.BAD_REQUEST,
-      );
+      throw new AppError('Your supplier account has been suspended', StatusCodes.BAD_REQUEST);
   }
 
   const uploadedImages: { url: string; public_id: string }[] = [];
@@ -1141,7 +1100,7 @@ const updateProduct = async (
     }
 
     for (const file of files) {
-      const uploaded = await uploadToCloudinary(file.path, "products");
+      const uploaded = await uploadToCloudinary(file.path, 'products');
       uploadedImages.push({
         url: uploaded.secure_url,
         public_id: uploaded.public_id,
@@ -1165,13 +1124,11 @@ const updateProduct = async (
   // 8️⃣ Prepare update data
   const updatedData: Partial<IProduct> = {
     ...payload,
-    images: (uploadedImages.length > 0
-      ? uploadedImages
-      : product.images) as any,
+    images: (uploadedImages.length > 0 ? uploadedImages : product.images) as any,
     // slug,
     seo: seoData,
     priceFrom,
-    addBy: user.role === "supplier" ? "supplier" : "admin",
+    addBy: user.role === 'supplier' ? 'supplier' : 'admin',
   };
 
   // 9️⃣ Update product in DB
@@ -1184,20 +1141,20 @@ const updateProduct = async (
 const deleteProduct = async (id: string) => {
   const product = await Product.findById(id);
   if (!product) {
-    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Product not found', StatusCodes.NOT_FOUND);
   }
 
   // Step 2: Check if product exists in any active order
-  const activeStatuses = ["pending", "shipped", "ready_to_ship"];
+  const activeStatuses = ['pending', 'shipped', 'ready_to_ship'];
 
   const orderUsingProduct = await Order.findOne({
-    "items.productId": product._id,
+    'items.productId': product._id,
     orderStatus: { $in: activeStatuses },
   });
 
   if (orderUsingProduct) {
     throw new AppError(
-      "Cannot delete product. It exists in active orders.",
+      'Cannot delete product. It exists in active orders.',
       StatusCodes.BAD_REQUEST,
     );
   }
@@ -1205,7 +1162,7 @@ const deleteProduct = async (id: string) => {
   // Step 3: Delete product
   await Product.findByIdAndDelete(id);
 
-  return { success: true, message: "Product deleted successfully" };
+  return { success: true, message: 'Product deleted successfully' };
 };
 
 const productService = {
