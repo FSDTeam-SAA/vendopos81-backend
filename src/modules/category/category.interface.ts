@@ -11,7 +11,6 @@ export interface IProductCategory {
 
 export interface ICategory {
   region: string;
-  slug: string;
   categories: IProductCategory[];
   productImage?: {
     public_id?: string;

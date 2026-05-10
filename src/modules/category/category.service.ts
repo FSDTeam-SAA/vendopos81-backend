@@ -1,14 +1,11 @@
-import mongoose from "mongoose";
-import countries from "world-countries";
-import AppError from "../../errors/AppError";
-import { regionMap, sanitizeRegion } from "../../lib/globalType";
-import generateShopSlug from "../../middleware/generateShopSlug";
-import {
-  deleteFromCloudinary,
-  uploadToCloudinary,
-} from "../../utils/cloudinary";
-import { ICategory } from "./category.interface";
-import category from "./category.model";
+import mongoose from 'mongoose';
+import countries from 'world-countries';
+import AppError from '../../errors/AppError';
+import { regionMap, sanitizeRegion } from '../../lib/globalType';
+import generateShopSlug from '../../middleware/generateShopSlug';
+import { deleteFromCloudinary, uploadToCloudinary } from '../../utils/cloudinary';
+import { ICategory } from './category.interface';
+import category from './category.model';
 
 const createCategory = async (
   payload: ICategory,
@@ -19,7 +16,7 @@ const createCategory = async (
 
   // 🔥 Duplicate region check (case-insensitive)
   const existingRegion = await category.findOne({
-    region: { $regex: `^${regionName}$`, $options: "i" },
+    region: { $regex: `^${regionName}$`, $options: 'i' },
   });
 
   if (existingRegion) {
@@ -28,7 +25,7 @@ const createCategory = async (
 
   // Region image required for new region
   if (!regionImg) {
-    throw new AppError("Region image is required", 400);
+    throw new AppError('Region image is required', 400);
   }
 
   // Map files
@@ -44,16 +41,10 @@ const createCategory = async (
       const productFile = filesMap[fileKey];
 
       if (!productFile) {
-        throw new AppError(
-          `ProductType image missing for ${cat.productType}`,
-          400,
-        );
+        throw new AppError(`ProductType image missing for ${cat.productType}`, 400);
       }
 
-      const uploaded = await uploadToCloudinary(
-        productFile.path,
-        "product-type-img",
-      );
+      const uploaded = await uploadToCloudinary(productFile.path, 'product-type-img');
 
       return {
         productType: cat.productType,
@@ -67,10 +58,7 @@ const createCategory = async (
   );
 
   // Upload region image
-  const uploadedRegionImage = await uploadToCloudinary(
-    regionImg.path,
-    "region-img",
-  );
+  const uploadedRegionImage = await uploadToCloudinary(regionImg.path, 'region-img');
 
   // Helper function
   const getCountriesByRegion = (inputRegion: string): string[] => {
@@ -80,8 +68,8 @@ const createCategory = async (
 
     return countries
       .filter((c) => {
-        const countryRegion = c.region?.toLowerCase() || "";
-        const countrySubregion = c.subregion?.toLowerCase() || "";
+        const countryRegion = c.region?.toLowerCase() || '';
+        const countrySubregion = c.subregion?.toLowerCase() || '';
 
         return (
           countryRegion.includes(mappedRegionLower) ||
@@ -127,7 +115,7 @@ const getCategories = async ({
   if (region) {
     // Convert string to ObjectId
     if (!mongoose.Types.ObjectId.isValid(region)) {
-      throw new AppError("Invalid region id", 400);
+      throw new AppError('Invalid region id', 400);
     }
     filter._id = new mongoose.Types.ObjectId(region);
   }
@@ -156,9 +144,7 @@ const getCategories = async ({
       }
     } else {
       allProductTypes = regionData.categories.map((c: any) => c.productType);
-      allProductNames = regionData.categories.flatMap(
-        (c: any) => c.productName,
-      );
+      allProductNames = regionData.categories.flatMap((c: any) => c.productName);
     }
   }
 
@@ -177,14 +163,10 @@ const getCategories = async ({
   };
 };
 
-const updateCategory = async (
-  id: string,
-  payload: ICategory,
-  files: Express.Multer.File[],
-) => {
+const updateCategory = async (id: string, payload: ICategory, files: Express.Multer.File[]) => {
   const isCategory = await category.findById(id);
   if (!isCategory) {
-    throw new AppError("Category not found", 404);
+    throw new AppError('Category not found', 404);
   }
 
   // 🔹 map files by fieldname
@@ -194,14 +176,11 @@ const updateCategory = async (
   });
 
   // 🔹 Update regionImage if provided
-  if (filesMap["regionImage"]) {
+  if (filesMap['regionImage']) {
     if (isCategory.regionImage?.public_id) {
       await deleteFromCloudinary(isCategory.regionImage.public_id);
     }
-    const uploadedRegion = await uploadToCloudinary(
-      filesMap["regionImage"].path,
-      "region-img",
-    );
+    const uploadedRegion = await uploadToCloudinary(filesMap['regionImage'].path, 'region-img');
     payload.regionImage = {
       url: uploadedRegion.secure_url,
       public_id: uploadedRegion.public_id,
@@ -217,16 +196,11 @@ const updateCategory = async (
 
       // Upload image if file provided
       if (productFile) {
-        const uploaded = await uploadToCloudinary(
-          productFile.path,
-          "product-type-img",
-        );
+        const uploaded = await uploadToCloudinary(productFile.path, 'product-type-img');
         cat.productImage = {
           url: uploaded.secure_url,
           public_id: uploaded.public_id,
         };
-      } else if (!cat.productImage) {
-        throw new AppError(`Product image missing for ${cat.productType}`, 400);
       }
 
       // Check if productType already exists in this region
@@ -246,13 +220,12 @@ const updateCategory = async (
   if (payload.region) {
     const isExistRegion = await category.findOne({
       _id: { $ne: id },
-      region: { $regex: `^${payload.region}$`, $options: "i" },
+      region: { $regex: `^${payload.region}$`, $options: 'i' },
     });
     if (isExistRegion) {
       throw new AppError(`${payload.region} already exists`, 409);
     }
     isCategory.region = payload.region;
-    isCategory.slug = generateShopSlug(payload.region);
 
     // Update countries
     const regionInput = payload.region.trim().toLowerCase();
@@ -275,15 +248,15 @@ const getCategoryRegion = async () => {
   const regions = await category.aggregate([
     {
       $group: {
-        _id: "$region",
-        docId: { $first: "$_id" },
-        regionImage: { $first: "$regionImage" },
+        _id: '$region',
+        docId: { $first: '$_id' },
+        regionImage: { $first: '$regionImage' },
       },
     },
     {
       $project: {
-        _id: "$docId",
-        region: "$_id",
+        _id: '$docId',
+        region: '$_id',
         regionImage: 1,
       },
     },

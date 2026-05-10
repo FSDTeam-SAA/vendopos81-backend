@@ -1,5 +1,5 @@
-import { model, Schema } from "mongoose";
-import { ICategory } from "./category.interface";
+import { model, Schema } from 'mongoose';
+import { ICategory } from './category.interface';
 
 const ProductCategorySchema = new Schema(
   {
@@ -25,14 +25,6 @@ const CategorySchema = new Schema<ICategory>(
     region: {
       type: String,
       required: true,
-      trim: true,
-    },
-
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
       trim: true,
     },
 
@@ -62,6 +54,6 @@ const CategorySchema = new Schema<ICategory>(
   },
 );
 
-const category = model<ICategory>("Category", CategorySchema);
+const category = model<ICategory>('Category', CategorySchema);
 
 export default category;

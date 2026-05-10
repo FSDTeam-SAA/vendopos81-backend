@@ -1,19 +1,19 @@
-import { StatusCodes } from "http-status-codes";
-import Stripe from "stripe";
-import AppError from "../../errors/AppError";
+import { StatusCodes } from 'http-status-codes';
+import Stripe from 'stripe';
+import AppError from '../../errors/AppError';
 import {
   calculateAmounts,
   calculateTotal,
   notifySupplierAndAdmin,
   splitItemsByOwner,
   updateOrderStatus,
-} from "../../lib/paymentIntent";
-import { validateOrderForPayment, validateUser } from "../../lib/validators";
-import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
-import Order from "../order/order.model";
-import { User } from "../user/user.model";
-import { SupplierSettlement } from "./../supplierSettlement/supplierSettlement.model";
-import Payment from "./payment.model";
+} from '../../lib/paymentIntent';
+import { validateOrderForPayment, validateUser } from '../../lib/validators';
+import JoinAsSupplier from '../joinAsSupplier/joinAsSupplier.model';
+import Order from '../order/order.model';
+import { User } from '../user/user.model';
+import { SupplierSettlement } from './../supplierSettlement/supplierSettlement.model';
+import Payment from './payment.model';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -47,14 +47,14 @@ const createPayment = async (payload: any, userEmail: string) => {
 
   // 🔹 Stripe session
   const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["klarna"],
-    billing_address_collection: "required",
+    mode: 'payment',
+    payment_method_types: ['klarna'],
+    billing_address_collection: 'required',
     customer_email: user.email,
     line_items: [
       {
         price_data: {
-          currency: "usd",
+          currency: 'cad',
           product_data: { name: `Order #${order.orderUniqueId}` },
           unit_amount: Math.round(grandTotal * 100),
         },
@@ -77,7 +77,7 @@ const createPayment = async (payload: any, userEmail: string) => {
     stripeCheckoutSessionId: session.id,
     stripePaymentIntentId: session.payment_intent as string,
     amount: grandTotal,
-    status: "pending",
+    status: 'pending',
     // paymentTransferStatus: "pending",
     paymentDate: new Date(),
   });
@@ -90,7 +90,7 @@ const createPayment = async (payload: any, userEmail: string) => {
     totalAmount: s.total,
     adminCommission: s.adminCommission,
     payableAmount: s.payableToSupplier,
-    status: "pending",
+    status: 'pending',
   }));
 
   await SupplierSettlement.insertMany(settlementDocs);
@@ -110,12 +110,12 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       process.env.STRIPE_WEBHOOK_ADMIN_SECRET as string,
     );
   } catch (err: any) {
-    console.error("Webhook verification failed:", err.message);
-    throw new AppError("Webhook verification failed", StatusCodes.BAD_REQUEST);
+    console.error('Webhook verification failed:', err.message);
+    throw new AppError('Webhook verification failed', StatusCodes.BAD_REQUEST);
   }
 
   switch (event.type) {
-    case "checkout.session.completed": {
+    case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
 
       const payment = await Payment.findOne({
@@ -127,31 +127,28 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       }
 
       // Idempotency: only process if not already successful
-      if (payment.status === "success") {
+      if (payment.status === 'success') {
         return { received: true };
       }
 
       try {
         // 1️⃣ Update payment and order atomically
         await Promise.all([
-          Payment.findByIdAndUpdate(payment._id, { status: "success" }),
+          Payment.findByIdAndUpdate(payment._id, { status: 'success' }),
           updateOrderStatus(payment.orderId, payment.userId),
         ]);
 
         void notifySupplierAndAdmin(payment);
         // void generateInvoice(payment.orderId);
       } catch (err) {
-        console.error("❌ Error processing payment completion:", err);
-        throw new AppError(
-          "Payment processing failed",
-          StatusCodes.INTERNAL_SERVER_ERROR,
-        );
+        console.error('❌ Error processing payment completion:', err);
+        throw new AppError('Payment processing failed', StatusCodes.INTERNAL_SERVER_ERROR);
       }
 
       break;
     }
 
-    case "checkout.session.expired": {
+    case 'checkout.session.expired': {
       // Optional: mark payment as failed if session expires without completion
       const session = event.data.object as Stripe.Checkout.Session;
 
@@ -159,8 +156,8 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
         stripeCheckoutSessionId: session.id,
       });
 
-      if (payment && payment.status === "pending") {
-        await Payment.findByIdAndUpdate(payment._id, { status: "failed" });
+      if (payment && payment.status === 'pending') {
+        await Payment.findByIdAndUpdate(payment._id, { status: 'failed' });
 
         void notifySupplierAndAdmin(payment);
       }
@@ -169,7 +166,7 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     }
 
     default:
-      console.log("Event type not handled:", event.type);
+      console.log('Event type not handled:', event.type);
   }
 
   return { received: true };
@@ -188,23 +185,21 @@ const getAllPayments = async (query: any) => {
 
   let payments: any[] = await Payment.find(filter)
     .populate({
-      path: "userId",
-      select: "firstName lastName email",
+      path: 'userId',
+      select: 'firstName lastName email',
     })
     .populate({
-      path: "orderId",
-      select: "orderUniqueId orderStatus",
+      path: 'orderId',
+      select: 'orderUniqueId orderStatus',
     })
-    .select("-__v -stripeCheckoutSessionId -stripePaymentIntentId")
+    .select('-__v -stripeCheckoutSessionId -stripePaymentIntentId')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
 
   // JS-level orderStatus filter (because populate)
   if (query.orderStatus) {
-    payments = payments.filter(
-      (p) => p.orderId?.orderStatus === query.orderStatus,
-    );
+    payments = payments.filter((p) => p.orderId?.orderStatus === query.orderStatus);
   }
 
   const total = await Payment.countDocuments(filter);
@@ -212,8 +207,8 @@ const getAllPayments = async (query: any) => {
   const summary = await Payment.aggregate([
     {
       $group: {
-        _id: "$status",
-        totalAmount: { $sum: "$amount" },
+        _id: '$status',
+        totalAmount: { $sum: '$amount' },
         count: { $sum: 1 },
       },
     },
@@ -225,14 +220,14 @@ const getAllPayments = async (query: any) => {
   let failedPayment = 0;
 
   summary.forEach((item) => {
-    if (item._id === "success") {
+    if (item._id === 'success') {
       totalRevenue = item.totalAmount;
       completedPayment = item.count;
     }
-    if (item._id === "pending") {
+    if (item._id === 'pending') {
       pendingPayment = item.count;
     }
-    if (item._id === "failed") {
+    if (item._id === 'failed') {
       failedPayment = item.count;
     }
   });
@@ -254,40 +249,37 @@ const getAllPayments = async (query: any) => {
   };
 };
 
-const requestForPaymentTransfer = async (
-  supplierEmail: string,
-  paymentId: string,
-) => {
+const requestForPaymentTransfer = async (supplierEmail: string, paymentId: string) => {
   // 1️⃣ Supplier validate
   const supplier = await User.findOne({ email: supplierEmail });
   if (!supplier) {
-    throw new AppError("Your account does not exist", 404);
+    throw new AppError('Your account does not exist', 404);
   }
 
   const isSupplier = await JoinAsSupplier.findOne({ userId: supplier._id });
   if (!isSupplier) {
-    throw new AppError("You are not a supplier", 400);
+    throw new AppError('You are not a supplier', 400);
   }
 
   // 2️⃣ Check payment success (order-level)
   const payment = await Payment.findOne({
     _id: paymentId,
-    status: "success",
+    status: 'success',
   });
 
   if (!payment) {
-    throw new AppError("Payment is not successful yet", 400);
+    throw new AppError('Payment is not successful yet', 400);
   }
 
   // 3️⃣ Find supplier settlement
   const settlement = await SupplierSettlement.findOne({
     paymentId: payment._id,
     supplierId: supplier._id,
-    status: "pending",
+    status: 'pending',
   });
 
   if (!settlement) {
-    throw new AppError("No settlement available for transfer", 400);
+    throw new AppError('No settlement available for transfer', 400);
   }
 
   // 4️⃣ Update settlement status (NO recalculation needed)
@@ -295,7 +287,7 @@ const requestForPaymentTransfer = async (
     settlement._id,
     {
       $set: {
-        status: "requested",
+        status: 'requested',
       },
     },
     { new: true },
@@ -308,42 +300,39 @@ const transferPayment = async (id: string) => {
   // 1️⃣ Settlement
   const settlement = await SupplierSettlement.findById(id);
   if (!settlement) {
-    throw new AppError("Settlement not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Settlement not found', StatusCodes.NOT_FOUND);
   }
 
-  if (settlement.status !== "pending") {
-    throw new AppError("Settlement is not pending", StatusCodes.BAD_REQUEST);
+  if (settlement.status !== 'pending') {
+    throw new AppError('Settlement is not pending', StatusCodes.BAD_REQUEST);
   }
 
   // 2️⃣ Payment
   const payment = await Payment.findById(settlement.paymentId);
-  if (!payment || payment.status !== "success") {
-    throw new AppError("Payment is not successful", StatusCodes.BAD_REQUEST);
+  if (!payment || payment.status !== 'success') {
+    throw new AppError('Payment is not successful', StatusCodes.BAD_REQUEST);
   }
 
   // 3️⃣ Order
   const order = await Order.findById(payment.orderId);
-  if (!order || order.paymentStatus !== "paid") {
-    throw new AppError("Order is not paid", StatusCodes.BAD_REQUEST);
+  if (!order || order.paymentStatus !== 'paid') {
+    throw new AppError('Order is not paid', StatusCodes.BAD_REQUEST);
   }
 
   // 4️⃣ Supplier User
   const supplier = await User.findById(settlement.supplierId);
   if (!supplier) {
-    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
   }
 
   if (!supplier.stripeAccountId || !supplier.stripeOnboardingCompleted) {
-    throw new AppError(
-      "Supplier not connected with Stripe",
-      StatusCodes.BAD_REQUEST,
-    );
+    throw new AppError('Supplier not connected with Stripe', StatusCodes.BAD_REQUEST);
   }
 
   // 5️⃣ Stripe Transfer
   const transfer = await stripe.transfers.create({
     amount: Math.round(settlement.payableAmount * 100), // cents
-    currency: "usd",
+    currency: 'usd',
     destination: supplier.stripeAccountId,
     metadata: {
       orderId: order._id.toString(),
@@ -354,14 +343,14 @@ const transferPayment = async (id: string) => {
   // 6️⃣ Update Settlement
   await SupplierSettlement.findByIdAndUpdate(settlement._id, {
     $set: {
-      status: "completed",
+      status: 'completed',
       stripeTransferId: transfer.id,
     },
   });
 
   return {
     success: true,
-    message: "Payment transferred to supplier successfully",
+    message: 'Payment transferred to supplier successfully',
     transferId: transfer.id,
   };
 };

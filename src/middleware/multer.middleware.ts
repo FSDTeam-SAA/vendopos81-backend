@@ -11,19 +11,90 @@ const storage = multer.diskStorage({
   },
 });
 
+// export const upload = multer({
+//   storage: storage,
+//   limits: { fileSize: 10 * 1024 * 1024 },
+//   fileFilter: (req, file, cb) => {
+//     const filetypes =
+//       /jpeg|jpg|png|pdf|png|mp4|avi|mov|avif|webp|doc|docx|mp3|mpeg|wav|m4a|xls|xlsx|ppt|pptx/;
+
+//     const mimetype = filetypes.test(file.mimetype);
+//     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+//     console.log(mimetype);
+//     console.log(extname);
+
+//     if (mimetype && extname) {
+//       return cb(null, true);
+//     }
+//     cb(new Error('This file type is not allowed!'));
+//   },
+// });
+
+// ✅ Allowed MIME types
+const allowedMimeTypes = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'application/pdf',
+  'video/mp4',
+  'video/x-msvideo',
+  'video/quicktime',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/mp4',
+  'audio/x-m4a',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
+
+// ✅ Allowed Extensions
+const allowedExtensions = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.avif',
+  '.pdf',
+  '.mp4',
+  '.avi',
+  '.mov',
+  '.mp3',
+  '.wav',
+  '.m4a',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+];
+
 export const upload = multer({
-  storage: storage,
+  storage,
   limits: { fileSize: 10 * 1024 * 1024 },
+
   fileFilter: (req, file, cb) => {
-    const filetypes =
-      /jpeg|jpg|png|pdf|png|mp4|avi|mov|avif|webp|doc|docx|mp3|mpeg|wav|m4a|xls|xlsx|ppt|pptx/;
+    try {
+      const ext = path.extname(file.originalname).toLowerCase();
 
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+      const isMimeValid = allowedMimeTypes.includes(file.mimetype);
+      const isExtValid = allowedExtensions.includes(ext);
 
-    if (mimetype && extname) {
-      return cb(null, true);
+      console.log('MIME:', file.mimetype);
+      console.log('EXT:', ext);
+
+      if (isMimeValid && isExtValid) {
+        return cb(null, true);
+      }
+
+      return cb(new Error('This file type is not allowed!'));
+    } catch (error) {
+      return cb(new Error('File validation failed!'));
     }
-    cb(new Error('This file type is not allowed!'));
   },
 });
