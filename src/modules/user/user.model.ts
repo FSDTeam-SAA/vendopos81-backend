@@ -1,14 +1,14 @@
-import bcrypt from "bcrypt";
-import { model, Schema } from "mongoose";
-import config from "../../config";
-import { applyEncryption } from "../../middleware/encryptionMiddleware";
-import { IUser, userModel } from "./user.interface";
+import bcrypt from 'bcrypt';
+import { model, Schema } from 'mongoose';
+import config from '../../config';
+import { applyEncryption } from '../../middleware/encryptionMiddleware';
+import { IUser, userModel } from './user.interface';
 
 const userSchema = new Schema<IUser>(
   {
     supplierId: {
       type: Schema.Types.ObjectId,
-      ref: "Supplier",
+      ref: 'Supplier',
     },
     firstName: {
       type: String,
@@ -34,15 +34,15 @@ const userSchema = new Schema<IUser>(
     },
     street: {
       type: String,
-      default: "",
+      default: '',
     },
     location: {
       type: String,
-      default: "",
+      default: '',
     },
     postalCode: {
       type: String,
-      default: "",
+      default: '',
     },
     dateOfBirth: {
       type: Date,
@@ -50,8 +50,8 @@ const userSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ["customer", "admin", "supplier", "driver"],
-      default: "customer",
+      enum: ['customer', 'admin', 'supplier', 'driver'],
+      default: 'customer',
     },
     image: {
       public_id: {
@@ -96,39 +96,38 @@ const userSchema = new Schema<IUser>(
   },
 );
 
-userSchema.pre("save", async function (next) {
-  this.password = await bcrypt.hash(
-    this.password,
-    Number(config.bcryptSaltRounds),
-  );
+// userSchema.pre('save', async function (next) {
+//   this.password = await bcrypt.hash(this.password, Number(config.bcryptSaltRounds));
+
+//   next();
+// });
+
+userSchema.pre('save', async function (next) {
+  // 👉 Only hash if password is modified
+  if (!this.isModified('password')) return next();
+
+  this.password = await bcrypt.hash(this.password, Number(config.bcryptSaltRounds));
 
   next();
 });
 
-userSchema.post("save", function (doc, next) {
-  doc.password = "";
+userSchema.post('save', function (doc, next) {
+  doc.password = '';
   next();
 });
 
-userSchema.statics.isPasswordMatch = async function (
-  password: string,
-  hashedPassword: string,
-) {
+userSchema.statics.isPasswordMatch = async function (password: string, hashedPassword: string) {
   return await bcrypt.compare(password, hashedPassword);
 };
 
-userSchema.statics.isUserExistByEmail = async function (
-  email: string,
-): Promise<IUser | null> {
+userSchema.statics.isUserExistByEmail = async function (email: string): Promise<IUser | null> {
   return await User.findOne({ email });
 };
 
-userSchema.statics.isUserExistById = async function (
-  _id: string,
-): Promise<IUser | null> {
+userSchema.statics.isUserExistById = async function (_id: string): Promise<IUser | null> {
   return await User.findOne({ _id });
 };
 
-applyEncryption(userSchema, ["phone", "street", "location", "postalCode"]);
+applyEncryption(userSchema, ['phone', 'street', 'location', 'postalCode']);
 
-export const User = model<IUser, userModel>("User", userSchema);
+export const User = model<IUser, userModel>('User', userSchema);

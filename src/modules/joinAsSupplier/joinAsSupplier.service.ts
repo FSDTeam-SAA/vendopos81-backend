@@ -1,23 +1,20 @@
-import bcrypt from "bcrypt";
-import { StatusCodes } from "http-status-codes";
-import mongoose from "mongoose";
-import config from "../../config";
-import AppError from "../../errors/AppError";
-import generateShopSlug from "../../middleware/generateShopSlug";
-import { createNotification } from "../../socket/notification.service";
-import {
-  deleteFromCloudinary,
-  uploadToCloudinary,
-} from "../../utils/cloudinary";
-import sendEmail from "../../utils/sendEmail";
-import sendTemplateMail from "../../utils/sendTamplateMail";
-import { createToken } from "../../utils/tokenGenerate";
-import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
-import Product from "../product/product.model";
-import { IUser } from "../user/user.interface";
-import { User } from "../user/user.model";
-import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
-import JoinAsSupplier from "./joinAsSupplier.model";
+import bcrypt from 'bcrypt';
+import { StatusCodes } from 'http-status-codes';
+import mongoose from 'mongoose';
+import config from '../../config';
+import AppError from '../../errors/AppError';
+import generateShopSlug from '../../middleware/generateShopSlug';
+import { createNotification } from '../../socket/notification.service';
+import { deleteFromCloudinary, uploadToCloudinary } from '../../utils/cloudinary';
+import sendEmail from '../../utils/sendEmail';
+import sendTemplateMail from '../../utils/sendTamplateMail';
+import { createToken } from '../../utils/tokenGenerate';
+import verificationCodeTemplate from '../../utils/verificationCodeTemplate';
+import Product from '../product/product.model';
+import { IUser } from '../user/user.interface';
+import { User } from '../user/user.model';
+import { IJoinAsSupplier, IQuery } from './joinAsSupplier.interface';
+import JoinAsSupplier from './joinAsSupplier.model';
 
 const joinAsSupplier = async (
   payload: IJoinAsSupplier,
@@ -26,10 +23,7 @@ const joinAsSupplier = async (
   currentUser?: IUser,
 ) => {
   if (!documents || documents.length === 0) {
-    throw new AppError(
-      "You must upload at least one document",
-      StatusCodes.BAD_REQUEST,
-    );
+    throw new AppError('You must upload at least one document', StatusCodes.BAD_REQUEST);
   }
 
   /** ===============================
@@ -38,7 +32,7 @@ const joinAsSupplier = async (
   const uploadedDocuments: { url: string; public_id: string }[] = [];
 
   for (const file of documents) {
-    const uploaded = await uploadToCloudinary(file.path, "supplier-documents");
+    const uploaded = await uploadToCloudinary(file.path, 'supplier-documents');
     uploadedDocuments.push({
       url: uploaded.secure_url,
       public_id: uploaded.public_id,
@@ -51,10 +45,7 @@ const joinAsSupplier = async (
   let logo: { url: string; public_id: string } | null = null;
 
   if (logoFile) {
-    const uploadedLogo = await uploadToCloudinary(
-      logoFile.path,
-      "supplier-logos",
-    );
+    const uploadedLogo = await uploadToCloudinary(logoFile.path, 'supplier-logos');
 
     logo = {
       url: uploadedLogo.secure_url,
@@ -75,20 +66,17 @@ const joinAsSupplier = async (
     if (currentUser) {
       const dbUser = await User.findById(currentUser.userId).session(session);
       if (!dbUser) {
-        throw new AppError(
-          "Your account does not exist",
-          StatusCodes.NOT_FOUND,
-        );
+        throw new AppError('Your account does not exist', StatusCodes.NOT_FOUND);
       }
 
       if (payload.shopName) {
         const existingShopName = await User.findOne({
-          shopName: { $regex: `^${payload.shopName}$`, $options: "i" },
+          shopName: { $regex: `^${payload.shopName}$`, $options: 'i' },
         }).session(session);
 
         if (existingShopName) {
           throw new AppError(
-            "Shop name already exists. Please choose a different name.",
+            'Shop name already exists. Please choose a different name.',
             StatusCodes.BAD_REQUEST,
           );
         }
@@ -96,12 +84,12 @@ const joinAsSupplier = async (
 
       if (payload.brandName) {
         const existingBrandName = await User.findOne({
-          brandName: { $regex: `^${payload.brandName}$`, $options: "i" },
+          brandName: { $regex: `^${payload.brandName}$`, $options: 'i' },
         }).session(session);
 
         if (existingBrandName) {
           throw new AppError(
-            "Brand name already exists. Please choose a different name.",
+            'Brand name already exists. Please choose a different name.',
             StatusCodes.BAD_REQUEST,
           );
         }
@@ -109,14 +97,14 @@ const joinAsSupplier = async (
 
       const existingRequest = await JoinAsSupplier.findOne({
         userId: dbUser._id,
-        status: { $in: ["pending", "approved"] },
+        status: { $in: ['pending', 'approved'] },
       }).session(session);
 
       if (existingRequest) {
         throw new AppError(
-          existingRequest.status === "approved"
-            ? "You are already a supplier"
-            : "Your supplier request is under review",
+          existingRequest.status === 'approved'
+            ? 'You are already a supplier'
+            : 'Your supplier request is under review',
           StatusCodes.BAD_REQUEST,
         );
       }
@@ -129,7 +117,7 @@ const joinAsSupplier = async (
 
       if (existingUser) {
         throw new AppError(
-          "Account already exists. Please login to continue.",
+          'Account already exists. Please login to continue.',
           StatusCodes.BAD_REQUEST,
         );
       }
@@ -147,7 +135,7 @@ const joinAsSupplier = async (
             firstName: payload.firstName,
             lastName: payload.lastName,
             password,
-            role: "supplier",
+            role: 'supplier',
             isVerified: false,
             otp: hashedOtp,
             otpExpires,
@@ -171,14 +159,11 @@ const joinAsSupplier = async (
      ===============================*/
     const alreadySupplier = await JoinAsSupplier.findOne({
       userId: user._id,
-      status: { $in: ["pending", "approved"] },
+      status: { $in: ['pending', 'approved'] },
     }).session(session);
 
     if (alreadySupplier) {
-      throw new AppError(
-        "You already have a supplier request",
-        StatusCodes.BAD_REQUEST,
-      );
+      throw new AppError('You already have a supplier request', StatusCodes.BAD_REQUEST);
     }
 
     /** ===============================
@@ -187,12 +172,12 @@ const joinAsSupplier = async (
     const shopSlug = generateShopSlug(payload.shopName);
 
     const existingShopSlug = await JoinAsSupplier.findOne({
-      shopSlug: { $regex: `^${shopSlug}$`, $options: "i" },
+      shopSlug: { $regex: `^${shopSlug}$`, $options: 'i' },
     }).session(session);
 
     if (existingShopSlug) {
       throw new AppError(
-        "Shop name already exists. Please choose a different name.",
+        'Shop name already exists. Please choose a different name.',
         StatusCodes.BAD_REQUEST,
       );
     }
@@ -202,12 +187,12 @@ const joinAsSupplier = async (
      ===============================*/
     if (payload.brandName) {
       const existingBrand = await JoinAsSupplier.findOne({
-        brandName: { $regex: `^${payload.brandName}$`, $options: "i" },
+        brandName: { $regex: `^${payload.brandName}$`, $options: 'i' },
       }).session(session);
 
       if (existingBrand) {
         throw new AppError(
-          "Brand name already exists. Please choose a different name.",
+          'Brand name already exists. Please choose a different name.',
           StatusCodes.BAD_REQUEST,
         );
       }
@@ -221,7 +206,7 @@ const joinAsSupplier = async (
           shopSlug,
           documentUrl: uploadedDocuments,
           logo,
-          status: "pending",
+          status: 'pending',
         },
       ],
       { session },
@@ -236,18 +221,18 @@ const joinAsSupplier = async (
     if (tempPassword) {
       await sendEmail({
         to: user.email,
-        subject: "Verify your email",
+        subject: 'Verify your email',
         html: verificationCodeTemplate(otp as string),
       });
     }
 
-    const adminUsers = await User.findOne({ role: "admin" });
+    const adminUsers = await User.findOne({ role: 'admin' });
 
     // Notify admins about new supplier request
     await createNotification({
       to: new mongoose.Types.ObjectId(adminUsers!._id),
       message: `New supplier request from ${user.firstName} ${user.lastName}`,
-      type: "supplier_request",
+      type: 'supplier_request',
       id: new mongoose.Types.ObjectId(supplierRequest[0]._id),
     });
 
@@ -263,7 +248,7 @@ const joinAsSupplier = async (
     await session.endSession();
 
     throw new AppError(
-      (error as Error).message || "Failed to join as supplier",
+      (error as Error).message || 'Failed to join as supplier',
       StatusCodes.BAD_REQUEST,
     );
   }
@@ -272,17 +257,17 @@ const joinAsSupplier = async (
 const getMySupplierInfo = async (email: string) => {
   const user = await User.isUserExistByEmail(email);
   if (!user) {
-    throw new Error("Your account does not exist");
+    throw new Error('Your account does not exist');
   }
 
   const isExistingSupplier = await JoinAsSupplier.findOne({ userId: user._id });
   if (!isExistingSupplier) {
-    throw new Error("You have not applied to be a supplier");
+    throw new Error('You have not applied to be a supplier');
   }
 
   const supplierInfo = await JoinAsSupplier.findOne({
     userId: user._id,
-  }).populate("userId", "firstName lastName email phone");
+  }).populate('userId', 'firstName lastName email phone');
 
   return supplierInfo;
 };
@@ -300,13 +285,13 @@ const getAllSuppliers = async (query: IQuery) => {
   }
 
   // ✅ CreatedAt filter (1 day / 7 days)
-  if (query.sort === "1day") {
+  if (query.sort === '1day') {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     filter.createdAt = { $gte: yesterday };
   }
 
-  if (query.sort === "7day") {
+  if (query.sort === '7day') {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     filter.createdAt = { $gte: sevenDaysAgo };
@@ -316,9 +301,9 @@ const getAllSuppliers = async (query: IQuery) => {
   const search = query.search
     ? {
         $or: [
-          { shopName: { $regex: query.search, $options: "i" } },
-          { "userId.firstName": { $regex: query.search, $options: "i" } },
-          { "userId.lastName": { $regex: query.search, $options: "i" } },
+          { shopName: { $regex: query.search, $options: 'i' } },
+          { 'userId.firstName': { $regex: query.search, $options: 'i' } },
+          { 'userId.lastName': { $regex: query.search, $options: 'i' } },
         ],
       }
     : {};
@@ -327,13 +312,13 @@ const getAllSuppliers = async (query: IQuery) => {
 
   // ✅ Sorting
   let sortOption: any = { createdAt: -1 };
-  if (query.sort === "atoz") {
+  if (query.sort === 'atoz') {
     sortOption = { shopName: 1 };
   }
 
   // ✅ Supplier list
   const suppliers = await JoinAsSupplier.find(combinedFilter)
-    .populate("userId", "firstName lastName email phone image")
+    .populate('userId', 'firstName lastName email phone image')
     .sort(sortOption)
     .skip(skip)
     .limit(limit);
@@ -341,10 +326,10 @@ const getAllSuppliers = async (query: IQuery) => {
   const total = await JoinAsSupplier.countDocuments(combinedFilter);
   const totalSupplier = await JoinAsSupplier.countDocuments();
   const totalPending = await JoinAsSupplier.countDocuments({
-    status: "pending",
+    status: 'pending',
   });
   const totalActive = await JoinAsSupplier.countDocuments({
-    status: "approved",
+    status: 'approved',
     isSuspended: false,
   });
 
@@ -356,7 +341,7 @@ const getAllSuppliers = async (query: IQuery) => {
       },
     },
     {
-      $count: "total",
+      $count: 'total',
     },
   ]);
 
@@ -381,11 +366,11 @@ const getAllSuppliers = async (query: IQuery) => {
 
 const getSingleSupplier = async (id: string) => {
   const supplier = await JoinAsSupplier.findById(id).populate(
-    "userId",
-    "firstName lastName email phone image",
+    'userId',
+    'firstName lastName email phone image',
   );
   if (!supplier) {
-    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
   }
 
   return supplier;
@@ -394,21 +379,19 @@ const getSingleSupplier = async (id: string) => {
 const updateSupplierStatus = async (id: string, status: string) => {
   const supplier = await JoinAsSupplier.findOne({ _id: id });
   if (!supplier) {
-    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
   }
 
-  const result = await JoinAsSupplier.findByIdAndUpdate(
-    id,
-    { status },
-    { new: true },
-  ).populate("userId", "firstName lastName email phone role");
+  const result = await JoinAsSupplier.findByIdAndUpdate(id, { status }, { new: true }).populate(
+    'userId',
+    'firstName lastName email phone role',
+  );
 
   const user = result?.userId as any;
 
-    if (!user) {
-      return result;
-    }
-
+  if (!user) {
+    return result;
+  }
 
   // JWT payload
   const JwtToken = {
@@ -426,27 +409,27 @@ const updateSupplierStatus = async (id: string, status: string) => {
   const resetPasswordURL = `${process.env.RESET_PASSWORD_URL}?token=${accessToken}`;
   const dashboardUrl = `${process.env.DASHBOARD_URL}`;
 
-  if (status === "approved") {
+  if (status === 'approved') {
     await sendEmail({
       to: supplier.email,
-      subject: "Your Supplier Account is Approved",
+      subject: 'Your Supplier Account is Approved',
       html: sendTemplateMail({
-        type: "success",
+        type: 'success',
         email: supplier.email,
-        subject: "Supplier Account Approved",
+        subject: 'Supplier Account Approved',
         resetPasswordURL,
         dashboardUrl,
         message: `Congratulations! Your supplier account has been approved. You can now start adding products ${supplier.shopName}`,
       }),
     });
-  } else if (status === "rejected") {
+  } else if (status === 'rejected') {
     await sendEmail({
       to: supplier.email,
-      subject: "Your Supplier Account is Rejected",
+      subject: 'Your Supplier Account is Rejected',
       html: sendTemplateMail({
-        type: "rejected",
+        type: 'rejected',
         email: supplier.email,
-        subject: "Supplier Account Rejected",
+        subject: 'Supplier Account Rejected',
         message: `Your supplier account has been rejected. Please try again later.`,
       }),
     });
@@ -459,16 +442,12 @@ const updateSupplierStatus = async (id: string, status: string) => {
 const suspendSupplier = async (id: string) => {
   const supplier = await JoinAsSupplier.findById(id);
   if (!supplier) {
-    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
   }
 
   const newStatus = !supplier.isSuspended;
 
-  await JoinAsSupplier.findByIdAndUpdate(
-    id,
-    { isSuspended: newStatus },
-    { new: true },
-  );
+  await JoinAsSupplier.findByIdAndUpdate(id, { isSuspended: newStatus }, { new: true });
 };
 
 const deleteSupplier = async (id: string) => {
@@ -479,12 +458,12 @@ const deleteSupplier = async (id: string) => {
     const supplier = await JoinAsSupplier.findById(id).session(session);
 
     if (!supplier) {
-      throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+      throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
     }
 
-    if (supplier.status !== "rejected" && !supplier.isSuspended) {
+    if (supplier.status !== 'rejected' && !supplier.isSuspended) {
       throw new AppError(
-        "Supplier must be rejected or suspended before deleting.",
+        'Supplier must be rejected or suspended before deleting.',
         StatusCodes.BAD_REQUEST,
       );
     }
@@ -510,19 +489,16 @@ const updateSupplierInfo = async (
   const supplier = await JoinAsSupplier.findById(id);
 
   if (!supplier) {
-    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+    throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
   }
 
-  if (supplier.status !== "pending") {
-    throw new AppError(
-      "Only pending suppliers can be updated.",
-      StatusCodes.BAD_REQUEST,
-    );
+  if (supplier.status !== 'pending') {
+    throw new AppError('Only pending suppliers can be updated.', StatusCodes.BAD_REQUEST);
   }
 
   if (supplier.isSuspended) {
     throw new AppError(
-      "Admin suspended your account. Please contact admin.",
+      'Admin suspended your account. Please contact admin.',
       StatusCodes.BAD_REQUEST,
     );
   }
@@ -536,10 +512,7 @@ const updateSupplierInfo = async (
     const newDocs = [];
 
     for (const file of documents) {
-      const uploaded = await uploadToCloudinary(
-        file.path,
-        "supplier-documents",
-      );
+      const uploaded = await uploadToCloudinary(file.path, 'supplier-documents');
 
       newDocs.push({
         url: uploaded.secure_url,
@@ -560,10 +533,7 @@ const updateSupplierInfo = async (
       await deleteFromCloudinary(logo.public_id);
     }
 
-    const uploadedLogo = await uploadToCloudinary(
-      logoFile.path,
-      "supplier-logos",
-    );
+    const uploadedLogo = await uploadToCloudinary(logoFile.path, 'supplier-logos');
 
     logo = {
       url: uploadedLogo.secure_url,
@@ -574,7 +544,7 @@ const updateSupplierInfo = async (
   /** ===============================
    * Update USER fields separately
    ===============================*/
-  const allowedUserFields = ["firstName", "lastName", "phone"];
+  const allowedUserFields = ['firstName', 'lastName', 'phone'];
   const userData: any = {};
 
   for (const key of allowedUserFields) {
@@ -594,14 +564,14 @@ const updateSupplierInfo = async (
    * Update SUPPLIER fields only
    ===============================*/
   const allowedSupplierFields = [
-    "shopName",
-    "brandName",
-    "description",
-    "warehouseLocation",
-    "address",
-    "location",
-    "street",
-    "postalCode",
+    'shopName',
+    'brandName',
+    'description',
+    'warehouseLocation',
+    'address',
+    'location',
+    'street',
+    'postalCode',
   ];
 
   const supplierData: any = {};
@@ -620,7 +590,7 @@ const updateSupplierInfo = async (
       logo,
     },
     { new: true, runValidators: true },
-  ).populate("userId", "firstName lastName phone email");
+  ).populate('userId', 'firstName lastName phone email');
 
   return updatedSupplier;
 };
