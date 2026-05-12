@@ -50,6 +50,9 @@ const createPayment = async (payload: any, userEmail: string) => {
     mode: 'payment',
     payment_method_types: ['klarna'],
     billing_address_collection: 'required',
+    shipping_address_collection: {
+      allowed_countries: ['CA'],
+    },
     customer_email: user.email,
     line_items: [
       {
