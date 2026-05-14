@@ -17,6 +17,118 @@ import Payment from './payment.model';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+// const createPayment = async (payload: any, userEmail: string) => {
+//   const { orderId } = payload;
+
+//   const user = await validateUser(userEmail);
+//   const order = await validateOrderForPayment(orderId, user._id);
+
+//   const { supplierMap, adminItems } = splitItemsByOwner(order.items);
+//   const adminTotal = calculateTotal(adminItems);
+//   let supplierTotal = 0;
+
+//   const supplierSettlements: any[] = [];
+
+//   for (const supplierUserId of Object.keys(supplierMap)) {
+//     const items = supplierMap[supplierUserId];
+//     const { total, adminCommission } = calculateAmounts(items);
+
+//     supplierTotal += total;
+
+//     supplierSettlements.push({
+//       supplierId: supplierUserId,
+//       total,
+//       adminCommission,
+//       payableToSupplier: total - adminCommission,
+//     });
+//   }
+
+//   const grandTotal = adminTotal + supplierTotal;
+
+//   // 🔹 Stripe session
+//   const session = await stripe.checkout.sessions.create({
+//     mode: 'payment',
+//     payment_method_types: ['klarna'],
+//     billing_address_collection: 'required',
+//     shipping_address_collection: {
+//       allowed_countries: ['CA'],
+//     },
+//     customer_email: user.email,
+//     line_items: [
+//       {
+//         price_data: {
+//           currency: 'cad',
+//           product_data: { name: `Order #${order.orderUniqueId}` },
+//           unit_amount: Math.round(grandTotal * 100),
+//         },
+//         quantity: 1,
+//       },
+//     ],
+//     metadata: {
+//       orderId: order._id.toString(),
+//       userId: user._id.toString(),
+//     },
+
+//     success_url: `${process.env.FRONT_END_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+//     cancel_url: `${process.env.FRONT_END_URL}/payment/cancel?session_id={CHECKOUT_SESSION_ID}`,
+//   });
+
+//   // Diagnostic log — session created
+//   try {
+//     console.log('Stripe Checkout session created:', {
+//       sessionId: session.id,
+//       paymentIntent: session.payment_intent,
+//       customerEmail: session.customer_email,
+//       amount_total: session.amount_total || Math.round(grandTotal * 100),
+//       metadata: session.metadata,
+//     });
+//   } catch (err) {
+//     console.error('Error logging session info:', err);
+//   }
+
+//   // 🔹 Create Payment (NO supplierId here)
+//   const payment = await Payment.create({
+//     userId: user._id,
+//     orderId: order._id,
+//     stripeCheckoutSessionId: session.id,
+//     stripePaymentIntentId: session.payment_intent as string,
+//     amount: grandTotal,
+//     status: 'pending',
+//     // paymentTransferStatus: "pending",
+//     paymentDate: new Date(),
+//   });
+
+//   // 🔹 Create Supplier Settlements (MULTIPLE)
+//   const settlementDocs = supplierSettlements.map((s) => ({
+//     paymentId: payment._id,
+//     orderId: order._id,
+//     supplierId: s.supplierId,
+//     totalAmount: s.total,
+//     adminCommission: s.adminCommission,
+//     payableAmount: s.payableToSupplier,
+//     status: 'pending',
+//   }));
+
+//   await SupplierSettlement.insertMany(settlementDocs);
+
+//   // Log Payment record creation (if available)
+//   try {
+//     console.log('Payment record created:', {
+//       paymentId: payment._id?.toString(),
+//       stripeCheckoutSessionId: payment.stripeCheckoutSessionId,
+//       stripePaymentIntentId: payment.stripePaymentIntentId,
+//       amount: payment.amount,
+//       status: payment.status,
+//     });
+//   } catch (err) {
+//     console.error('Error logging payment creation:', err);
+//   }
+
+//   return {
+//     checkoutUrl: session.url,
+//   };
+// };
+
 const createPayment = async (payload: any, userEmail: string) => {
   const { orderId } = payload;
 
@@ -45,6 +157,9 @@ const createPayment = async (payload: any, userEmail: string) => {
 
   const grandTotal = adminTotal + supplierTotal;
 
+  // ✅ Total admin commission
+  const totalAdminCommission = supplierSettlements.reduce((sum, s) => sum + s.adminCommission, 0);
+
   // 🔹 Stripe session
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
@@ -59,7 +174,7 @@ const createPayment = async (payload: any, userEmail: string) => {
         price_data: {
           currency: 'cad',
           product_data: { name: `Order #${order.orderUniqueId}` },
-          unit_amount: Math.round(grandTotal * 100),
+          unit_amount: Math.round(grandTotal * 100), // cents
         },
         quantity: 1,
       },
@@ -68,37 +183,29 @@ const createPayment = async (payload: any, userEmail: string) => {
       orderId: order._id.toString(),
       userId: user._id.toString(),
     },
-
     success_url: `${process.env.FRONT_END_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONT_END_URL}/payment/cancel?session_id={CHECKOUT_SESSION_ID}`,
   });
 
-  // Diagnostic log — session created
-  try {
-    console.log('Stripe Checkout session created:', {
-      sessionId: session.id,
-      paymentIntent: session.payment_intent,
-      customerEmail: session.customer_email,
-      amount_total: session.amount_total || Math.round(grandTotal * 100),
-      metadata: session.metadata,
-    });
-  } catch (err) {
-    console.error('Error logging session info:', err);
-  }
+  console.log('Stripe Checkout session created:', {
+    sessionId: session.id,
+    paymentIntent: session.payment_intent,
+    amount_total: session.amount_total,
+  });
 
-  // 🔹 Create Payment (NO supplierId here)
+  // 🔹 Create Payment
   const payment = await Payment.create({
     userId: user._id,
     orderId: order._id,
     stripeCheckoutSessionId: session.id,
-    stripePaymentIntentId: session.payment_intent as string,
+    stripePaymentIntentId: session.payment_intent || null, // may be null initially
     amount: grandTotal,
+    adminCommission: totalAdminCommission, // ✅ FIXED
     status: 'pending',
-    // paymentTransferStatus: "pending",
     paymentDate: new Date(),
   });
 
-  // 🔹 Create Supplier Settlements (MULTIPLE)
+  // 🔹 Supplier settlements
   const settlementDocs = supplierSettlements.map((s) => ({
     paymentId: payment._id,
     orderId: order._id,
@@ -111,18 +218,11 @@ const createPayment = async (payload: any, userEmail: string) => {
 
   await SupplierSettlement.insertMany(settlementDocs);
 
-  // Log Payment record creation (if available)
-  try {
-    console.log('Payment record created:', {
-      paymentId: payment._id?.toString(),
-      stripeCheckoutSessionId: payment.stripeCheckoutSessionId,
-      stripePaymentIntentId: payment.stripePaymentIntentId,
-      amount: payment.amount,
-      status: payment.status,
-    });
-  } catch (err) {
-    console.error('Error logging payment creation:', err);
-  }
+  console.log('Payment record created:', {
+    paymentId: payment._id.toString(),
+    amount: payment.amount,
+    adminCommission: payment.adminCommission,
+  });
 
   return {
     checkoutUrl: session.url,
