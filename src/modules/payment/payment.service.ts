@@ -73,6 +73,19 @@ const createPayment = async (payload: any, userEmail: string) => {
     cancel_url: `${process.env.FRONT_END_URL}/payment/cancel?session_id={CHECKOUT_SESSION_ID}`,
   });
 
+  // Diagnostic log — session created
+  try {
+    console.log('Stripe Checkout session created:', {
+      sessionId: session.id,
+      paymentIntent: session.payment_intent,
+      customerEmail: session.customer_email,
+      amount_total: session.amount_total || Math.round(grandTotal * 100),
+      metadata: session.metadata,
+    });
+  } catch (err) {
+    console.error('Error logging session info:', err);
+  }
+
   // 🔹 Create Payment (NO supplierId here)
   const payment = await Payment.create({
     userId: user._id,
@@ -98,6 +111,19 @@ const createPayment = async (payload: any, userEmail: string) => {
 
   await SupplierSettlement.insertMany(settlementDocs);
 
+  // Log Payment record creation (if available)
+  try {
+    console.log('Payment record created:', {
+      paymentId: payment._id?.toString(),
+      stripeCheckoutSessionId: payment.stripeCheckoutSessionId,
+      stripePaymentIntentId: payment.stripePaymentIntentId,
+      amount: payment.amount,
+      status: payment.status,
+    });
+  } catch (err) {
+    console.error('Error logging payment creation:', err);
+  }
+
   return {
     checkoutUrl: session.url,
   };
@@ -106,12 +132,25 @@ const createPayment = async (payload: any, userEmail: string) => {
 const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
   let event: Stripe.Event;
 
+  // Log incoming webhook signature and payload size
+  try {
+    console.log('--- Incoming Stripe webhook ---');
+    console.log('stripe-signature present:', Boolean(sig));
+    console.log(
+      'payload length:',
+      payload && (payload as any).length ? (payload as any).length : 'unknown',
+    );
+  } catch (err) {
+    console.error('Error logging incoming webhook info:', err);
+  }
+
   try {
     event = stripe.webhooks.constructEvent(
       payload,
       sig,
       process.env.STRIPE_WEBHOOK_ADMIN_SECRET as string,
     );
+    console.log('Webhook signature verified. event type:', event.type, 'event id:', event.id);
   } catch (err: any) {
     console.error('Webhook verification failed:', err.message);
     throw new AppError('Webhook verification failed', StatusCodes.BAD_REQUEST);
@@ -121,9 +160,20 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
 
+      console.log('Handling checkout.session.completed for session:', session.id);
+
       const payment = await Payment.findOne({
         stripeCheckoutSessionId: session.id,
       });
+
+      if (payment)
+        console.log(
+          'Found Payment for session:',
+          payment._id?.toString(),
+          'status:',
+          payment.status,
+        );
+      else console.log('No Payment found for session:', session.id);
 
       if (!payment) {
         return { received: true };
@@ -141,6 +191,7 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
           updateOrderStatus(payment.orderId, payment.userId),
         ]);
 
+        console.log('Payment status updated to success for payment:', payment._id?.toString());
         void notifySupplierAndAdmin(payment);
         // void generateInvoice(payment.orderId);
       } catch (err) {
@@ -155,6 +206,8 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       // Optional: mark payment as failed if session expires without completion
       const session = event.data.object as Stripe.Checkout.Session;
 
+      console.log('Handling checkout.session.expired for session:', session.id);
+
       const payment = await Payment.findOne({
         stripeCheckoutSessionId: session.id,
       });
@@ -162,6 +215,7 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
       if (payment && payment.status === 'pending') {
         await Payment.findByIdAndUpdate(payment._id, { status: 'failed' });
 
+        console.log('Payment status set to failed for payment:', payment._id?.toString());
         void notifySupplierAndAdmin(payment);
       }
 
@@ -169,7 +223,12 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
     }
 
     default:
-      console.log('Event type not handled:', event.type);
+      console.log(
+        'Event type not handled:',
+        event.type,
+        'object id:',
+        (event.data?.object as any)?.id,
+      );
   }
 
   return { received: true };
