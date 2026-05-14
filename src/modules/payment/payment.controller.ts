@@ -1,7 +1,7 @@
-import { StatusCodes } from "http-status-codes";
-import catchAsync from "../../utils/catchAsync";
-import sendResponse from "../../utils/sendResponse";
-import paymentService from "./payment.service";
+import { StatusCodes } from 'http-status-codes';
+import catchAsync from '../../utils/catchAsync';
+import sendResponse from '../../utils/sendResponse';
+import paymentService from './payment.service';
 
 const createPayment = catchAsync(async (req, res) => {
   const { email } = req.user;
@@ -10,19 +10,35 @@ const createPayment = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Payment created successfully",
+    message: 'Payment created successfully',
     data: result,
   });
 });
 
 const stripeWebhookHandler = catchAsync(async (req, res) => {
-  const sig = req.headers["stripe-signature"];
+  const sig = req.headers['stripe-signature'];
+  // Detailed logs for webhook debugging
+  try {
+    console.log('--- Stripe webhook received ---');
+    console.log('URL:', req.originalUrl);
+    console.log('Incoming webhook content-type:', req.get('content-type'));
+    console.log('stripe-signature present:', Boolean(sig));
+    // req.body may be Buffer (raw). Log length safely.
+    if (req.body && typeof req.body.length === 'number') {
+      console.log('Raw body length:', req.body.length);
+    } else {
+      console.log('Raw body type:', typeof req.body);
+    }
+  } catch (err) {
+    console.error('Error while logging webhook request info:', err);
+  }
+
   const result = await paymentService.stripeWebhookHandler(sig, req.body);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Stripe webhook handled successfully",
+    message: 'Stripe webhook handled successfully',
     data: result,
   });
 });
@@ -35,7 +51,7 @@ const requestForPaymentTransfer = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Payment transfer requested successfully",
+    message: 'Payment transfer requested successfully',
     data: result,
   });
 });
@@ -46,7 +62,7 @@ const getAllPayments = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Payments retrieved successfully",
+    message: 'Payments retrieved successfully',
     data: result.data,
     meta: result.meta,
     analytics: result.summary,
@@ -60,7 +76,7 @@ const transferPayment = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Payment transferred successfully",
+    message: 'Payment transferred successfully',
     data: result,
   });
 });
