@@ -1,14 +1,14 @@
-import { StatusCodes } from "http-status-codes";
-import AppError from "../../errors/AppError";
-import JoinAsSupplier from "../joinAsSupplier/joinAsSupplier.model";
-import Order from "../order/order.model";
-import { User } from "../user/user.model";
-import { SupplierSettlement } from "./supplierSettlement.model";
+import { StatusCodes } from 'http-status-codes';
+import AppError from '../../errors/AppError';
+import JoinAsSupplier from '../joinAsSupplier/joinAsSupplier.model';
+import Order from '../order/order.model';
+import { User } from '../user/user.model';
+import { SupplierSettlement } from './supplierSettlement.model';
 
 interface ISettlementQuery {
   page?: number;
   limit?: number;
-  status?: "pending" | "transferred" | "requested";
+  status?: 'pending' | 'transferred' | 'requested';
 }
 
 const getAllSupplierSettlements = async (query: ISettlementQuery) => {
@@ -24,13 +24,14 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
   // 🔹 Settlement List (with pagination)
   const settlements = await SupplierSettlement.find(filter)
     .populate({
-      path: "orderId",
+      path: 'orderId',
       model: Order,
-      select: "orderNumber totalAmount orderStatus paymentStatus",
+      select: 'orderNumber totalAmount orderStatus paymentStatus',
     })
     .populate({
-      path: "supplierId",
-      select: "name email shopName brandName",
+      path: 'supplierId',
+      model: JoinAsSupplier,
+      select: 'name email shopName brandName logo',
     })
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -43,9 +44,9 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
   const analytics = await SupplierSettlement.aggregate([
     {
       $group: {
-        _id: "$status",
+        _id: '$status',
         count: { $sum: 1 },
-        totalAmount: { $sum: "$payableAmount" },
+        totalAmount: { $sum: '$payableAmount' },
       },
     },
   ]);
@@ -57,10 +58,9 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
   };
 
   analytics.forEach((item) => {
-    if (item._id === "pending") analyticsSummary.totalPending = item.count;
-    if (item._id === "transferred")
-      analyticsSummary.totalTransferred = item.count;
-    if (item._id === "requested") analyticsSummary.totalRequested = item.count;
+    if (item._id === 'pending') analyticsSummary.totalPending = item.count;
+    if (item._id === 'transferred') analyticsSummary.totalTransferred = item.count;
+    if (item._id === 'requested') analyticsSummary.totalRequested = item.count;
   });
 
   return {
@@ -75,14 +75,11 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
   };
 };
 
-const getSupplierSettlement = async (
-  email: string,
-  query: ISettlementQuery,
-) => {
+const getSupplierSettlement = async (email: string, query: ISettlementQuery) => {
   // 🔹 Step 1: User check
   const isExistSupplier = await User.findOne({ email });
   if (!isExistSupplier) {
-    throw new AppError("Your account does not exist", StatusCodes.NOT_FOUND);
+    throw new AppError('Your account does not exist', StatusCodes.NOT_FOUND);
   }
 
   // 🔹 Step 2: Supplier profile check
@@ -90,10 +87,7 @@ const getSupplierSettlement = async (
     userId: isExistSupplier._id,
   });
   if (!supplier) {
-    throw new AppError(
-      "You have not applied to be a supplier",
-      StatusCodes.NOT_FOUND,
-    );
+    throw new AppError('You have not applied to be a supplier', StatusCodes.NOT_FOUND);
   }
 
   // 🔹 Step 3: Pagination + Filter
@@ -112,13 +106,14 @@ const getSupplierSettlement = async (
   // 🔹 Step 4: Settlement list
   const settlements = await SupplierSettlement.find(filter)
     .populate({
-      path: "orderId",
+      path: 'orderId',
       model: Order,
-      select: "orderNumber orderUniqueId totalAmount orderStatus paymentStatus",
+      select: 'orderNumber orderUniqueId totalAmount orderStatus paymentStatus',
     })
     .populate({
-      path: "supplierId",
-      select: "name email shopName brandName",
+      path: 'supplierId',
+      model: JoinAsSupplier,
+      select: 'name email shopName brandName logo',
     })
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -136,9 +131,9 @@ const getSupplierSettlement = async (
     },
     {
       $group: {
-        _id: "$status",
+        _id: '$status',
         count: { $sum: 1 },
-        totalPayable: { $sum: "$payableAmount" },
+        totalPayable: { $sum: '$payableAmount' },
       },
     },
   ]);
@@ -150,9 +145,9 @@ const getSupplierSettlement = async (
   };
 
   analyticsRaw.forEach((item) => {
-    if (item._id === "pending") analytics.totalPending = item.count;
-    if (item._id === "transferred") analytics.totalTransferred = item.count;
-    if (item._id === "requested") analytics.totalRequested = item.count;
+    if (item._id === 'pending') analytics.totalPending = item.count;
+    if (item._id === 'transferred') analytics.totalTransferred = item.count;
+    if (item._id === 'requested') analytics.totalRequested = item.count;
   });
 
   return {
