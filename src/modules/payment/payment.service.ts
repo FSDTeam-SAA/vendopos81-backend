@@ -291,6 +291,10 @@ const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
           updateOrderStatus(payment.orderId, payment.userId),
         ]);
 
+        await Order.findByIdAndUpdate(payment.orderId, {
+          paymentStatus: 'paid',
+        });
+
         console.log('Payment status updated to success for payment:', payment._id?.toString());
         void notifySupplierAndAdmin(payment);
         // void generateInvoice(payment.orderId);
