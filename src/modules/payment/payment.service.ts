@@ -440,7 +440,7 @@ const requestForPaymentTransfer = async (supplierEmail: string, paymentId: strin
   // 3️⃣ Find supplier settlement
   const settlement = await SupplierSettlement.findOne({
     paymentId: payment._id,
-    supplierId: supplier._id,
+    supplierId: isSupplier._id,
     status: 'pending',
   });
 
