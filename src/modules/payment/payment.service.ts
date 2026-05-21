@@ -416,7 +416,6 @@ const getAllPayments = async (query: any) => {
 };
 
 const requestForPaymentTransfer = async (supplierEmail: string, paymentId: string) => {
-  // 1️⃣ Supplier validate
   const supplier = await User.findOne({ email: supplierEmail });
   if (!supplier) {
     throw new AppError('Your account does not exist', 404);
@@ -427,7 +426,6 @@ const requestForPaymentTransfer = async (supplierEmail: string, paymentId: strin
     throw new AppError('You are not a supplier', 400);
   }
 
-  // 2️⃣ Check payment success (order-level)
   const payment = await Payment.findOne({
     _id: paymentId,
     status: 'success',
@@ -437,7 +435,6 @@ const requestForPaymentTransfer = async (supplierEmail: string, paymentId: strin
     throw new AppError('Payment is not successful yet', 400);
   }
 
-  // 3️⃣ Find supplier settlement
   const settlement = await SupplierSettlement.findOne({
     paymentId: payment._id,
     supplierId: isSupplier._id,
@@ -448,7 +445,6 @@ const requestForPaymentTransfer = async (supplierEmail: string, paymentId: strin
     throw new AppError('No settlement available for transfer', 400);
   }
 
-  // 4️⃣ Update settlement status (NO recalculation needed)
   const updatedSettlement = await SupplierSettlement.findByIdAndUpdate(
     settlement._id,
     {
@@ -463,7 +459,6 @@ const requestForPaymentTransfer = async (supplierEmail: string, paymentId: strin
 };
 
 const transferPayment = async (id: string) => {
-  // 1️⃣ Settlement
   const settlement = await SupplierSettlement.findById(id);
   if (!settlement) {
     throw new AppError('Settlement not found', StatusCodes.NOT_FOUND);
@@ -473,19 +468,16 @@ const transferPayment = async (id: string) => {
     throw new AppError('Settlement is not pending', StatusCodes.BAD_REQUEST);
   }
 
-  // 2️⃣ Payment
   const payment = await Payment.findById(settlement.paymentId);
   if (!payment || payment.status !== 'success') {
     throw new AppError('Payment is not successful', StatusCodes.BAD_REQUEST);
   }
 
-  // 3️⃣ Order
   const order = await Order.findById(payment.orderId);
   if (!order || order.paymentStatus !== 'paid') {
     throw new AppError('Order is not paid', StatusCodes.BAD_REQUEST);
   }
 
-  // 4️⃣ Supplier User
   const supplier = await User.findById(settlement.supplierId);
   if (!supplier) {
     throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
@@ -495,9 +487,8 @@ const transferPayment = async (id: string) => {
     throw new AppError('Supplier not connected with Stripe', StatusCodes.BAD_REQUEST);
   }
 
-  // 5️⃣ Stripe Transfer
   const transfer = await stripe.transfers.create({
-    amount: Math.round(settlement.payableAmount * 100), // cents
+    amount: Math.round(settlement.payableAmount * 100),
     currency: 'usd',
     destination: supplier.stripeAccountId,
     metadata: {
@@ -506,7 +497,6 @@ const transferPayment = async (id: string) => {
     },
   });
 
-  // 6️⃣ Update Settlement
   await SupplierSettlement.findByIdAndUpdate(settlement._id, {
     $set: {
       status: 'completed',
