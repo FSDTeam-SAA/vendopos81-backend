@@ -464,8 +464,8 @@ const transferPayment = async (id: string) => {
     throw new AppError('Settlement not found', StatusCodes.NOT_FOUND);
   }
 
-  if (settlement.status !== 'pending') {
-    throw new AppError('Settlement is not pending', StatusCodes.BAD_REQUEST);
+  if (settlement.status !== 'requested') {
+    throw new AppError('Settlement is not requested', StatusCodes.BAD_REQUEST);
   }
 
   const payment = await Payment.findById(settlement.paymentId);
@@ -489,7 +489,7 @@ const transferPayment = async (id: string) => {
 
   const transfer = await stripe.transfers.create({
     amount: Math.round(settlement.payableAmount * 100),
-    currency: 'usd',
+    currency: 'cad',
     destination: supplier.stripeAccountId,
     metadata: {
       orderId: order._id.toString(),
