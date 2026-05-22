@@ -478,19 +478,24 @@ const transferPayment = async (id: string) => {
     throw new AppError('Order is not paid', StatusCodes.BAD_REQUEST);
   }
 
-  const supplier = await User.findById(settlement.supplierId);
+  const supplier = await JoinAsSupplier.findById(settlement.supplierId);
   if (!supplier) {
     throw new AppError('Supplier not found', StatusCodes.NOT_FOUND);
   }
 
-  if (!supplier.stripeAccountId || !supplier.stripeOnboardingCompleted) {
+  const user = await User.findById(supplier.userId);
+  if (!user) {
+    throw new AppError('Supplier user not found', StatusCodes.NOT_FOUND);
+  }
+
+  if (!user.stripeAccountId || !user.stripeOnboardingCompleted) {
     throw new AppError('Supplier not connected with Stripe', StatusCodes.BAD_REQUEST);
   }
 
   const transfer = await stripe.transfers.create({
     amount: Math.round(settlement.payableAmount * 100),
     currency: 'cad',
-    destination: supplier.stripeAccountId,
+    destination: user.stripeAccountId,
     metadata: {
       orderId: order._id.toString(),
       settlementId: settlement._id.toString(),
