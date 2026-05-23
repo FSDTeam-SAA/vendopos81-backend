@@ -516,12 +516,55 @@ const transferPayment = async (id: string) => {
   };
 };
 
+const getSupplierPaymentHistory = async (supplierEmail: string, query: any) => {
+  console.log(supplierEmail);
+
+  const user = await User.findOne({ email: supplierEmail });
+  if (!user) {
+    throw new AppError('Your account does not exist', 404);
+  }
+
+  const supplier = await JoinAsSupplier.findOne({ userId: user._id });
+  if (!supplier) {
+    throw new AppError('You are not a supplier', 400);
+  }
+
+  // 1. Find orders that contain this supplier's products
+  const orders = await Order.find({
+    'items.supplierId': supplier._id,
+  });
+
+  const orderIds = orders.map((o) => o._id);
+
+  // 2. Get payments related to those orders
+  const payments = await Payment.find({
+    orderId: { $in: orderIds },
+    status: 'success',
+  })
+    .populate({
+      path: 'orderId',
+      model: 'Order',
+    })
+    .sort({ createdAt: -1 });
+
+  return {
+    data: payments,
+    meta: {
+      total: payments.length,
+      page: Number(query.page) || 1,
+      limit: Number(query.limit) || 10,
+      totalPage: Math.ceil(payments.length / Number(query.limit)) || 1,
+    },
+  };
+};
+
 const paymentService = {
   createPayment,
   stripeWebhookHandler,
   getAllPayments,
   requestForPaymentTransfer,
   transferPayment,
+  getSupplierPaymentHistory,
 };
 
 export default paymentService;
