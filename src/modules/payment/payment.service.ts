@@ -517,8 +517,6 @@ const transferPayment = async (id: string) => {
 };
 
 const getSupplierPaymentHistory = async (supplierEmail: string, query: any) => {
-  console.log(supplierEmail);
-
   const user = await User.findOne({ email: supplierEmail });
   if (!user) {
     throw new AppError('Your account does not exist', 404);
@@ -532,11 +530,11 @@ const getSupplierPaymentHistory = async (supplierEmail: string, query: any) => {
   // 1. Find orders that contain this supplier's products
   const orders = await Order.find({
     'items.supplierId': supplier._id,
-  });
+  }).select('_id');
 
   const orderIds = orders.map((o) => o._id);
 
-  // 2. Get payments related to those orders
+  // 2. Get payments (CLEANED + POPULATED)
   const payments = await Payment.find({
     orderId: { $in: orderIds },
     status: 'success',
@@ -544,7 +542,13 @@ const getSupplierPaymentHistory = async (supplierEmail: string, query: any) => {
     .populate({
       path: 'orderId',
       model: 'Order',
+      select: 'orderUniqueId orderStatus paymentStatus totalPrice purchaseDate items',
+      populate: {
+        path: 'items.productId items.variantId',
+        select: 'name title price images sku',
+      },
     })
+    .select('-stripeCheckoutSessionId -stripePaymentIntentId -customTransactionId')
     .sort({ createdAt: -1 });
 
   return {
@@ -553,7 +557,7 @@ const getSupplierPaymentHistory = async (supplierEmail: string, query: any) => {
       total: payments.length,
       page: Number(query.page) || 1,
       limit: Number(query.limit) || 10,
-      totalPage: Math.ceil(payments.length / Number(query.limit)) || 1,
+      totalPage: Math.ceil(payments.length / Number(query.limit || 10)) || 1,
     },
   };
 };
