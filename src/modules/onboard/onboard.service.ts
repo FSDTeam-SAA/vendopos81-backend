@@ -43,8 +43,8 @@ const createConnectedAccount = async (email: string) => {
   const onboardingLink = await stripe.accountLinks.create({
     account: account.id,
     type: 'account_onboarding',
-    refresh_url: `${process.env.FRONT_END_URL}/stripe/refresh`,
-    return_url: `${process.env.FRONT_END_URL}/stripe/return`,
+    refresh_url: `${process.env.SUPPLIER_FRONT_END_URL}/stripe/refresh`,
+    return_url: `${process.env.SUPPLIER_FRONT_END_URL}/stripe/return`,
   });
 
   return { account, onboardingLink };

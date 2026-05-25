@@ -1,4 +1,4 @@
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 dotenv.config();
 
 export default {
@@ -35,6 +35,7 @@ export default {
   },
   frontend_reset_password_url: process.env.RESET_PASSWORD_URL,
   frontend_url: process.env.FRONT_END_URL,
+  SUPPLIER_FRONT_END_URL: process.env.SUPPLIER_FRONT_END_URL,
 
   stripe: {
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
