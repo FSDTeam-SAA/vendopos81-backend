@@ -8,7 +8,7 @@ import { SupplierSettlement } from './supplierSettlement.model';
 interface ISettlementQuery {
   page?: number;
   limit?: number;
-  status?: 'pending' | 'transferred' | 'requested';
+  status?: 'pending' | 'transferred' | 'requested' | 'completed';
 }
 
 const getAllSupplierSettlements = async (query: ISettlementQuery) => {
@@ -46,7 +46,8 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
       $group: {
         _id: '$status',
         count: { $sum: 1 },
-        totalAmount: { $sum: '$payableAmount' },
+        totalPayableAmount: { $sum: '$payableAmount' },
+        totalAdminCommission: { $sum: '$adminCommission' },
       },
     },
   ]);
@@ -55,13 +56,26 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
     totalPending: 0,
     totalTransferred: 0,
     totalRequested: 0,
+    totalTransferredAmount: 0,
+    totalAdminCommission: 0,
   };
 
   for (const item of analytics) {
-    if (item._id === 'pending') analyticsSummary.totalPending = item.count;
-    if (item._id === 'transferred' || item._id === 'completed')
+    if (item._id === 'pending') {
+      analyticsSummary.totalPending = item.count;
+    }
+
+    if (item._id === 'requested') {
+      analyticsSummary.totalRequested = item.count;
+    }
+
+    if (item._id === 'transferred' || item._id === 'completed') {
       analyticsSummary.totalTransferred = item.count;
-    if (item._id === 'requested') analyticsSummary.totalRequested = item.count;
+
+      analyticsSummary.totalTransferredAmount = item.totalPayableAmount;
+    }
+
+    analyticsSummary.totalAdminCommission += item.totalAdminCommission;
   }
 
   // 🔥 FINAL SAFETY MAP (VERY IMPORTANT)
