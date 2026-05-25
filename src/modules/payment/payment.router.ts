@@ -16,5 +16,11 @@ router.post(
 
 router.post('/transfer/:id', auth(USER_ROLE.ADMIN), paymentController.transferPayment);
 
+router.get(
+  '/supplier-history',
+  auth(USER_ROLE.SUPPLIER),
+  paymentController.getSupplierPaymentHistory,
+);
+
 const paymentRouter = router;
 export default paymentRouter;

@@ -59,7 +59,8 @@ const getAllSupplierSettlements = async (query: ISettlementQuery) => {
 
   for (const item of analytics) {
     if (item._id === 'pending') analyticsSummary.totalPending = item.count;
-    if (item._id === 'transferred') analyticsSummary.totalTransferred = item.count;
+    if (item._id === 'transferred' || item._id === 'completed')
+      analyticsSummary.totalTransferred = item.count;
     if (item._id === 'requested') analyticsSummary.totalRequested = item.count;
   }
 
@@ -153,7 +154,9 @@ const getSupplierSettlement = async (email: string, query: ISettlementQuery) => 
 
   analyticsRaw.forEach((item) => {
     if (item._id === 'pending') analytics.totalPending = item.count;
-    if (item._id === 'transferred') analytics.totalTransferred = item.count;
+    if (item._id === 'completed' || item._id === 'transferred') {
+      analytics.totalTransferred = item.totalPayable;
+    }
     if (item._id === 'requested') analytics.totalRequested = item.count;
   });
 

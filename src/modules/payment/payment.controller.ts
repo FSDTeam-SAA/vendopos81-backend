@@ -81,12 +81,26 @@ const transferPayment = catchAsync(async (req, res) => {
   });
 });
 
+const getSupplierPaymentHistory = catchAsync(async (req, res) => {
+  const { email } = req.user;
+  const result = await paymentService.getSupplierPaymentHistory(email, req.query);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Supplier payment history retrieved successfully',
+    data: result.data,
+    meta: result.meta,
+  });
+});
+
 const paymentController = {
   createPayment,
   stripeWebhookHandler,
   getAllPayments,
   requestForPaymentTransfer,
   transferPayment,
+  getSupplierPaymentHistory,
 };
 
 export default paymentController;
